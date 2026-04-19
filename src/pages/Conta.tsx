@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { User, LogIn, Package, Settings } from "lucide-react";
+import { User, LogIn, Package, Settings, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 const Conta = () => (
