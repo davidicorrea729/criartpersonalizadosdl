@@ -28,6 +28,13 @@ const Conta = () => (
       <div className="mt-8 space-y-2">
         <MenuItem icon={<Package className="h-5 w-5" />} label="Meus pedidos" />
         <MenuItem icon={<Settings className="h-5 w-5" />} label="Endereços e dados" />
+        <Link
+          to="/admin"
+          className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card shadow-soft hover:shadow-card transition-smooth"
+        >
+          <span className="text-primary"><ShieldCheck className="h-5 w-5" /></span>
+          <span className="font-medium text-sm">Painel do criador</span>
+        </Link>
       </div>
     </div>
   </AppShell>
