@@ -11,6 +11,7 @@ import Print3DDetalhe from "./pages/Print3DDetalhe";
 import Carrinho from "./pages/Carrinho";
 import Conta from "./pages/Conta";
 import Contato from "./pages/Contato";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/carrinho" element={<Carrinho />} />
           <Route path="/conta" element={<Conta />} />
           <Route path="/contato" element={<Contato />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
