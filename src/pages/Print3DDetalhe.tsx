@@ -7,12 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Upload, FileBox } from "lucide-react";
 import {
-  products,
   materials,
   qualities,
   printColors,
   STL_BASE_PRICE,
 } from "@/data/catalog";
+import { useProduct } from "@/hooks/useProducts";
 import { useCart, formatBRL } from "@/store/cart";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -27,9 +27,7 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
   const addItem = useCart((s) => s.addItem);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const product = uploadMode
-    ? null
-    : products.find((p) => p.id === id && p.category === "impressao3d");
+  const { product } = useProduct(uploadMode ? undefined : id);
 
   const [material, setMaterial] = useState(materials[0].id);
   const [color, setColor] = useState(printColors[0].id);
@@ -43,7 +41,7 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
   const qualityOpt = qualities.find((q) => q.id === quality)!;
   const colorOpt = printColors.find((c) => c.id === color)!;
 
-  const basePrice = uploadMode ? STL_BASE_PRICE : product?.basePrice ?? 0;
+  const basePrice = uploadMode ? STL_BASE_PRICE : Number(product?.base_price ?? 0);
   const scaleFactor = (scale[0] / 100) ** 1.5; // volume cresce não linearmente
 
   const unitPrice = useMemo(() => {
@@ -72,7 +70,7 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
       productId: product?.id ?? `stl-${Date.now()}`,
       category: "impressao3d",
       name: product?.name ?? `Peça personalizada (${stlFile?.name})`,
-      image: product?.image ?? "",
+      image: product?.image_url ?? "",
       unitPrice,
       quantity,
       customization: {
@@ -93,7 +91,7 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
   return (
     <AppShell title={title} showBack>
       {!uploadMode && product && (
-        <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
+        <img src={product.image_url} alt={product.name} className="w-full aspect-square object-cover" />
       )}
 
       {uploadMode && (
@@ -216,7 +214,7 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
         </Section>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 md:hidden border-t bg-background/95 backdrop-blur p-4 z-30">
+      <div className="fixed bottom-16 inset-x-0 md:bottom-0 border-t bg-background/95 backdrop-blur p-4 z-30">
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Total</p>

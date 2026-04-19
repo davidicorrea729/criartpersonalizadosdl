@@ -6,13 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  products,
   towelSizes,
   towelColors,
   fontOptions,
   threadColors,
   EMBROIDERY_FEE,
 } from "@/data/catalog";
+import { useProduct } from "@/hooks/useProducts";
 import { useCart, formatBRL } from "@/store/cart";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 const BordadoDetalhe = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = products.find((p) => p.id === id && p.category === "bordados");
+  const { product, loading } = useProduct(id);
   const addItem = useCart((s) => s.addItem);
 
   const [size, setSize] = useState(towelSizes[0].id);
@@ -38,10 +38,18 @@ const BordadoDetalhe = () => {
 
   const unitPrice = useMemo(() => {
     if (!product) return 0;
-    const base = product.basePrice * sizeOpt.multiplier;
+    const base = Number(product.base_price) * sizeOpt.multiplier;
     const fee = text.trim().length > 0 ? EMBROIDERY_FEE : 0;
     return Math.round((base + fee) * 100) / 100;
   }, [product, sizeOpt, text]);
+
+  if (loading) {
+    return (
+      <AppShell title="Produto" showBack>
+        <div className="p-6 text-center text-muted-foreground">Carregando...</div>
+      </AppShell>
+    );
+  }
 
   if (!product) {
     return (
@@ -56,7 +64,7 @@ const BordadoDetalhe = () => {
       productId: product.id,
       category: "bordados",
       name: product.name,
-      image: product.image,
+      image: product.image_url,
       unitPrice,
       quantity,
       customization: {
@@ -77,7 +85,7 @@ const BordadoDetalhe = () => {
       {/* Imagem + preview */}
       <div className="relative">
         <img
-          src={product.image}
+          src={product.image_url}
           alt={product.name}
           className="w-full aspect-square object-cover"
         />
@@ -185,8 +193,8 @@ const BordadoDetalhe = () => {
         </Section>
       </div>
 
-      {/* Sticky footer */}
-      <div className="fixed bottom-0 inset-x-0 md:hidden border-t bg-background/95 backdrop-blur p-4 z-30">
+      {/* Sticky footer — sempre visível */}
+      <div className="fixed bottom-16 inset-x-0 md:bottom-0 border-t bg-background/95 backdrop-blur p-4 z-30">
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Total</p>
