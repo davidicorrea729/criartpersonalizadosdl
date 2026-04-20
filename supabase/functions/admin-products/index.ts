@@ -113,6 +113,43 @@ Deno.serve(async (req) => {
       return json({ url: pub.publicUrl });
     }
 
+    if (action === "list-orders") {
+      const { data, error } = await admin
+        .from("orders")
+        .select("*, order_items(*)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return json({ orders: data });
+    }
+
+    if (action === "update-order-status") {
+      const { id, status } = body as any;
+      const VALID = ["pendente", "em_producao", "enviado", "concluido", "cancelado"];
+      if (!id || !VALID.includes(status)) return json({ error: "dados inválidos" }, 400);
+      const { data, error } = await admin
+        .from("orders")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return json({ order: data });
+    }
+
+    if (action === "promote-admin") {
+      const { email } = body as any;
+      if (!email) return json({ error: "email obrigatório" }, 400);
+      const { data: list, error: lerr } = await admin.auth.admin.listUsers();
+      if (lerr) throw lerr;
+      const user = list.users.find((u: any) => u.email?.toLowerCase() === String(email).toLowerCase());
+      if (!user) return json({ error: "usuário não encontrado. Cadastre-se primeiro com este email." }, 404);
+      const { error: rerr } = await admin
+        .from("user_roles")
+        .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id,role" });
+      if (rerr) throw rerr;
+      return json({ ok: true });
+    }
+
     return json({ error: "ação desconhecida" }, 400);
   } catch (err) {
     console.error("admin-products error:", err);
