@@ -1,13 +1,70 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { useCart, formatBRL } from "@/store/cart";
-import { Trash2, ShoppingBag } from "lucide-react";
+import { Trash2, ShoppingBag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Carrinho = () => {
   const { items, removeItem, updateQuantity, total, clear } = useCart();
   const subtotal = total();
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleCheckout = async () => {
+    if (!user) {
+      toast.info("Entre na sua conta para finalizar o pedido");
+      return navigate("/auth");
+    }
+    if (!profile?.full_name || !profile?.phone || !profile?.street) {
+      toast.info("Complete seus dados de contato e endereço antes de finalizar");
+      return navigate("/conta");
+    }
+    setSubmitting(true);
+    try {
+      const address = `${profile.street}, ${profile.number}${profile.complement ? " - " + profile.complement : ""} - ${profile.neighborhood}, ${profile.city}/${profile.state} - CEP ${profile.cep}`;
+      const { data: order, error: oErr } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          status: "pendente",
+          total: subtotal,
+          customer_name: profile.full_name,
+          customer_phone: profile.phone,
+          shipping_address: address,
+          payment_method: "pix",
+          payment_status: "pending",
+        })
+        .select()
+        .single();
+      if (oErr) throw oErr;
+
+      const itemsPayload = items.map((i) => ({
+        order_id: order.id,
+        product_id: i.productId,
+        category: i.category,
+        name: i.name,
+        image_url: i.image,
+        unit_price: i.unitPrice,
+        quantity: i.quantity,
+        customization: i.customization as any,
+      }));
+      const { error: iErr } = await supabase.from("order_items").insert(itemsPayload);
+      if (iErr) throw iErr;
+
+      clear();
+      toast.success("Pedido criado! Acompanhe em Meus pedidos.");
+      navigate("/pedidos");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao criar pedido");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -108,9 +165,14 @@ const Carrinho = () => {
             variant="hero"
             size="xl"
             className="w-full"
-            onClick={() => toast.info("Checkout estará disponível na Fase 3 (pagamentos)")}
+            onClick={handleCheckout}
+            disabled={submitting}
           >
-            Finalizar pedido
+            {submitting ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+            ) : (
+              "Finalizar pedido"
+            )}
           </Button>
         </div>
       </div>
