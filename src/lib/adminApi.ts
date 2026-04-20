@@ -44,6 +44,10 @@ export const adminApi = {
   create: (product: Record<string, unknown>) => call("create", { product }),
   update: (id: string, patch: Record<string, unknown>) => call("update", { id, patch }),
   remove: (id: string) => call("delete", { id }),
+  listOrders: () => call("list-orders"),
+  updateOrderStatus: (id: string, status: string) =>
+    call("update-order-status", { id, status }),
+  promoteAdmin: (email: string) => call("promote-admin", { email }),
   uploadImage: async (file: File) => {
     const base64 = await new Promise<string>((resolve, reject) => {
       const r = new FileReader();
