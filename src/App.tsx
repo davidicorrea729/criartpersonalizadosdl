@@ -13,6 +13,7 @@ import Carrinho from "./pages/Carrinho";
 import Conta from "./pages/Conta";
 import Auth from "./pages/Auth";
 import Pedidos from "./pages/Pedidos";
+import Pagamento from "./pages/Pagamento";
 import Contato from "./pages/Contato";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/conta" element={<Conta />} />
             <Route path="/pedidos" element={<Pedidos />} />
+            <Route path="/pagamento/:orderId" element={<Pagamento />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
