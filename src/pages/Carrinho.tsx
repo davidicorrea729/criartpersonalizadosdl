@@ -57,8 +57,8 @@ const Carrinho = () => {
       if (iErr) throw iErr;
 
       clear();
-      toast.success("Pedido criado! Acompanhe em Meus pedidos.");
-      navigate("/pedidos");
+      toast.success("Pedido criado! Pague com PIX para confirmar.");
+      navigate(`/pagamento/${order.id}`);
     } catch (e: any) {
       toast.error(e.message || "Erro ao criar pedido");
     } finally {
