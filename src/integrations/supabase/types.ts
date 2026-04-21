@@ -67,9 +67,13 @@ export type Database = {
           customer_name: string
           customer_phone: string
           id: string
+          mp_payment_id: string | null
           notes: string
           payment_method: string
           payment_status: string
+          pix_expires_at: string | null
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
           shipping_address: string
           status: Database["public"]["Enums"]["order_status"]
           total: number
@@ -81,9 +85,13 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           id?: string
+          mp_payment_id?: string | null
           notes?: string
           payment_method?: string
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           shipping_address?: string
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
@@ -95,9 +103,13 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           id?: string
+          mp_payment_id?: string | null
           notes?: string
           payment_method?: string
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           shipping_address?: string
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
