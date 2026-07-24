@@ -30,7 +30,7 @@ import {
 import { formatBRL } from "@/store/cart";
 import { STATUS_LABEL, STATUS_COLOR, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
-import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus } from "lucide-react";
+import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductRow {
@@ -67,6 +67,7 @@ const Admin = () => {
   const [form, setForm] = useState<Omit<ProductRow, "id">>(empty);
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState<"products" | "orders">("products");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const saved = getAdminPassword();
@@ -193,7 +194,7 @@ const Admin = () => {
 
   if (!authed) {
     return (
-      <AppShell title="Admin" showBack>
+      <AppShell title="Admin" showBack hideCart>
         <div className="px-5 py-10 max-w-sm mx-auto">
           <div className="flex flex-col items-center gap-2 mb-6">
             <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -233,63 +234,101 @@ const Admin = () => {
     );
   }
 
+  const filteredItems = items.filter((p) =>
+    p.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
   return (
-    <AppShell title="Admin" showBack>
+    <AppShell title="Admin" showBack wide hideCart>
       <div className="px-4 pt-3 pb-32">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm text-muted-foreground">
-            {tab === "products" ? `${items.length} produto(s)` : `${orders.length} pedido(s)`}
-          </p>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-display text-lg font-bold leading-tight">Painel do criador</h2>
+            <p className="text-sm text-muted-foreground">
+              {tab === "products" ? `${filteredItems.length} de ${items.length} produto(s)` : `${orders.length} pedido(s)`}
+            </p>
+          </div>
           <button
             onClick={handleLogout}
-            className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+            className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 shrink-0"
           >
             <LogOut className="h-3 w-3" /> Sair
           </button>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 w-full mb-3">
-            <TabsTrigger value="products">Produtos</TabsTrigger>
-            <TabsTrigger value="orders">Pedidos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="products" className="space-y-2">
-            {items.map((p) => (
-              <div key={p.id} className="bg-card rounded-2xl shadow-soft p-3 flex gap-3">
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
-                ) : (
-                  <div className="h-16 w-16 rounded-xl bg-muted flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm leading-tight truncate">{p.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {p.category === "bordados" ? "Bordados" : "Impressão 3D"}
-                    {!p.is_active && " • inativo"}
-                  </p>
-                  <p className="text-sm font-bold text-primary mt-0.5">
-                    {formatBRL(Number(p.base_price))}
-                  </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+            <TabsList className="grid grid-cols-2 w-full sm:w-64">
+              <TabsTrigger value="products">Produtos</TabsTrigger>
+              <TabsTrigger value="orders">Pedidos</TabsTrigger>
+            </TabsList>
+            {tab === "products" && (
+              <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar produto..."
+                    className="pl-9"
+                  />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <button onClick={() => openEdit(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent" aria-label="Editar">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => handleDelete(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground" aria-label="Excluir">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <Button onClick={openNew} variant="hero" className="hidden sm:inline-flex gap-2 shrink-0">
+                  <Plus className="h-4 w-4" /> Novo produto
+                </Button>
               </div>
-            ))}
+            )}
+          </div>
+
+          <TabsContent value="products">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredItems.map((p) => (
+                <div key={p.id} className="bg-card rounded-2xl shadow-soft p-3 flex gap-3">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="h-16 w-16 rounded-xl bg-muted flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm leading-tight truncate">{p.name}</p>
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                        {p.category === "bordados" ? "Bordados" : "Impressão 3D"}
+                      </Badge>
+                      {!p.is_active && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+                          Inativo
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm font-bold text-primary mt-1">
+                      {formatBRL(Number(p.base_price))}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => openEdit(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent" aria-label="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground" aria-label="Excluir">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
             {items.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-12">
                 Nenhum produto. Clique em + para criar o primeiro.
               </p>
             )}
+            {items.length > 0 && filteredItems.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-12">
+                Nenhum produto encontrado para "{search}".
+              </p>
+            )}
           </TabsContent>
 
-          <TabsContent value="orders" className="space-y-2">
+          <TabsContent value="orders" className="grid gap-3 lg:grid-cols-2">
             {orders.map((o) => (
               <div key={o.id} className="bg-card rounded-2xl shadow-soft p-3">
                 <div className="flex justify-between items-start gap-2 mb-2">
@@ -343,7 +382,7 @@ const Admin = () => {
       {tab === "products" && (
         <button
           onClick={openNew}
-          className="fixed bottom-20 right-4 md:bottom-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-elegant flex items-center justify-center z-30 hover:scale-105 transition-smooth"
+          className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-elegant flex items-center justify-center z-30 hover:scale-105 transition-smooth sm:hidden"
           aria-label="Novo produto"
         >
           <Plus className="h-6 w-6" />

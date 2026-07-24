@@ -1,13 +1,16 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCart } from "@/store/cart";
+import { cn } from "@/lib/utils";
 
 interface AppHeaderProps {
   title?: string;
   showBack?: boolean;
+  hideCart?: boolean;
+  wide?: boolean;
 }
 
-export const AppHeader = ({ title, showBack }: AppHeaderProps) => {
+export const AppHeader = ({ title, showBack, hideCart, wide }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const count = useCart((s) => s.count());
@@ -15,7 +18,7 @@ export const AppHeader = ({ title, showBack }: AppHeaderProps) => {
 
   return (
     <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
-      <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between gap-3">
+      <div className={cn("mx-auto px-4 h-14 flex items-center justify-between gap-3", wide ? "max-w-5xl" : "max-w-md")}>
         <div className="flex items-center gap-2 min-w-0">
           {showBack && !isHome ? (
             <button
@@ -34,18 +37,20 @@ export const AppHeader = ({ title, showBack }: AppHeaderProps) => {
             <h1 className="font-display text-lg font-semibold truncate">{title}</h1>
           )}
         </div>
-        <Link
-          to="/carrinho"
-          className="relative p-2 rounded-full hover:bg-muted transition-smooth"
-          aria-label="Carrinho"
-        >
-          <ShoppingBag className="h-5 w-5" />
-          {count > 0 && (
-            <span className="absolute top-0 right-0 bg-secondary text-secondary-foreground text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
-              {count}
-            </span>
-          )}
-        </Link>
+        {!hideCart && (
+          <Link
+            to="/carrinho"
+            className="relative p-2 rounded-full hover:bg-muted transition-smooth"
+            aria-label="Carrinho"
+          >
+            <ShoppingBag className="h-5 w-5" />
+            {count > 0 && (
+              <span className="absolute top-0 right-0 bg-secondary text-secondary-foreground text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
+                {count}
+              </span>
+            )}
+          </Link>
+        )}
       </div>
     </header>
   );
