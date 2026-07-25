@@ -68,7 +68,7 @@ const Carrinho = () => {
 
   if (items.length === 0) {
     return (
-      <AppShell title="Carrinho" showBack>
+      <AppShell title="Carrinho" showBack wide>
         <div className="px-5 py-16 text-center">
           <div className="mx-auto h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
             <ShoppingBag className="h-10 w-10 text-muted-foreground" />
@@ -91,8 +91,9 @@ const Carrinho = () => {
   }
 
   return (
-    <AppShell title="Carrinho" showBack>
-      <div className="px-4 pt-4 space-y-3">
+    <AppShell title="Carrinho" showBack wide>
+      <div className="md:flex md:gap-8 md:px-4 md:pt-4 md:items-start">
+      <div className="px-4 pt-4 space-y-3 md:px-0 md:pt-0 md:flex-1">
         {items.map((item) => (
           <div key={item.id} className="bg-card rounded-2xl shadow-soft p-3 flex gap-3">
             {item.image ? (
@@ -147,13 +148,40 @@ const Carrinho = () => {
             clear();
             toast.success("Carrinho limpo");
           }}
-          className="text-xs text-muted-foreground underline mx-auto block pt-2"
+          className="text-xs text-muted-foreground underline mx-auto block pt-2 md:mx-0"
         >
           Limpar carrinho
         </button>
       </div>
 
-      <div className="fixed bottom-16 inset-x-0 md:bottom-0 border-t bg-background/95 backdrop-blur p-4 z-30">
+      {/* Resumo — barra lateral fixa no desktop */}
+      <div className="hidden md:block md:w-72 md:flex-shrink-0 md:sticky md:top-20">
+        <div className="bg-card rounded-2xl shadow-soft p-4">
+          <div className="flex justify-between mb-3">
+            <span className="text-sm text-muted-foreground">Subtotal</span>
+            <span className="font-display text-2xl font-bold text-primary">
+              {formatBRL(subtotal)}
+            </span>
+          </div>
+          <Button
+            variant="hero"
+            size="xl"
+            className="w-full"
+            onClick={handleCheckout}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+            ) : (
+              "Finalizar pedido"
+            )}
+          </Button>
+        </div>
+      </div>
+      </div>
+
+      {/* Resumo — barra fixa no rodapé no mobile */}
+      <div className="fixed bottom-16 inset-x-0 border-t bg-background/95 backdrop-blur p-4 z-30 md:hidden">
         <div className="max-w-md mx-auto">
           <div className="flex justify-between mb-3">
             <span className="text-sm text-muted-foreground">Subtotal</span>

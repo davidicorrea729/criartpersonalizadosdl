@@ -6,22 +6,22 @@ import { Sparkles, Printer, ArrowRight } from "lucide-react";
 
 const Index = () => {
   return (
-    <AppShell>
+    <AppShell wide>
       {/* Hero */}
-      <section className="px-5 pt-6 pb-4">
+      <section className="px-5 pt-6 pb-4 md:px-8 md:pt-10 md:pb-6 md:max-w-2xl">
         <p className="text-xs uppercase tracking-widest text-secondary font-semibold">
           Atelier Personalizado
         </p>
-        <h1 className="font-display text-3xl font-bold mt-1 leading-tight">
+        <h1 className="font-display text-3xl md:text-4xl font-bold mt-1 leading-tight">
           Crie peças únicas <span className="text-secondary">com a sua cara</span>
         </h1>
-        <p className="text-muted-foreground mt-2 text-sm">
+        <p className="text-muted-foreground mt-2 text-sm md:text-base">
           Bordados artesanais e impressão 3D sob demanda — entregues prontos para você.
         </p>
       </section>
 
       {/* Categorias */}
-      <section className="px-5 space-y-4">
+      <section className="px-5 md:px-8 grid gap-4 md:grid-cols-2 md:gap-6">
         <CategoryCard
           to="/bordados"
           image={heroBordados}
@@ -43,20 +43,20 @@ const Index = () => {
       </section>
 
       {/* Como funciona */}
-      <section className="px-5 mt-10">
+      <section className="px-5 md:px-8 mt-10">
         <h2 className="font-display text-xl font-semibold mb-4">Como funciona</h2>
-        <ol className="space-y-3">
+        <ol className="space-y-3 md:space-y-0 md:grid md:grid-cols-4 md:gap-4">
           {[
             "Escolha o produto e personalize",
             "Adicione ao carrinho e finalize",
             "Pague com PIX ou cartão",
             "Acompanhe a produção em tempo real",
           ].map((s, i) => (
-            <li key={i} className="flex gap-3 items-start">
+            <li key={i} className="flex gap-3 items-start md:flex-col md:gap-2">
               <span className="flex-shrink-0 h-7 w-7 rounded-full gradient-hero text-primary-foreground text-sm font-bold flex items-center justify-center">
                 {i + 1}
               </span>
-              <span className="text-sm text-foreground/80 pt-0.5">{s}</span>
+              <span className="text-sm text-foreground/80 pt-0.5 md:pt-0">{s}</span>
             </li>
           ))}
         </ol>

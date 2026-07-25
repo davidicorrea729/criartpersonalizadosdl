@@ -37,8 +37,8 @@ const Conta = () => {
 
   if (!user) {
     return (
-      <AppShell title="Minha Conta" showBack>
-        <div className="px-5 pt-6">
+      <AppShell title="Minha Conta" showBack wide>
+        <div className="px-5 pt-6 md:max-w-md md:mx-auto">
           <div className="flex flex-col items-center text-center py-6">
             <div className="h-20 w-20 rounded-full gradient-hero flex items-center justify-center text-primary-foreground shadow-elegant">
               <User className="h-10 w-10" />
@@ -74,8 +74,8 @@ const Conta = () => {
   };
 
   return (
-    <AppShell title="Minha Conta" showBack>
-      <div className="px-5 pt-5 pb-10">
+    <AppShell title="Minha Conta" showBack wide>
+      <div className="px-5 pt-5 pb-10 md:max-w-2xl md:mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <div className="h-14 w-14 rounded-full gradient-hero flex items-center justify-center text-primary-foreground">
             <User className="h-7 w-7" />

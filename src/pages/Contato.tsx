@@ -5,8 +5,8 @@ import { MessageCircle, Phone, Mail } from "lucide-react";
 const WHATSAPP = "5511999999999"; // ajuste com o número real
 
 const Contato = () => (
-  <AppShell title="Contato" showBack>
-    <div className="px-5 pt-6 space-y-5">
+  <AppShell title="Contato" showBack wide>
+    <div className="px-5 pt-6 space-y-5 md:max-w-md md:mx-auto">
       <div>
         <h2 className="font-display text-2xl font-bold">Fale com a gente</h2>
         <p className="text-sm text-muted-foreground mt-1">

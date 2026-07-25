@@ -89,54 +89,57 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
   const title = uploadMode ? "Enviar STL" : product?.name ?? "Produto";
 
   return (
-    <AppShell title={title} showBack>
-      {!uploadMode && product && (
-        <img src={product.image_url} alt={product.name} className="w-full aspect-square object-cover" />
-      )}
+    <AppShell title={title} showBack wide>
+      <div className="md:flex md:gap-8 md:px-8 md:pt-6">
+        <div className="md:w-[42%] md:flex-shrink-0 md:self-start md:sticky md:top-20">
+          {!uploadMode && product && (
+            <img src={product.image_url} alt={product.name} className="w-full aspect-square object-cover md:rounded-2xl" />
+          )}
 
-      {uploadMode && (
-        <div className="px-5 pt-5">
-          <button
-            onClick={() => fileRef.current?.click()}
-            className={cn(
-              "w-full rounded-2xl border-2 border-dashed p-8 flex flex-col items-center gap-3 transition-smooth",
-              stlFile
-                ? "border-success bg-success/5"
-                : "border-border hover:border-primary bg-muted/30"
-            )}
-          >
-            {stlFile ? (
-              <>
-                <FileBox className="h-10 w-10 text-success" />
-                <div className="text-center">
-                  <p className="font-medium text-sm">{stlFile.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {(stlFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <span className="text-xs text-primary underline">Trocar arquivo</span>
-              </>
-            ) : (
-              <>
-                <Upload className="h-10 w-10 text-muted-foreground" />
-                <div className="text-center">
-                  <p className="font-medium">Toque para enviar</p>
-                  <p className="text-xs text-muted-foreground mt-1">Apenas .stl</p>
-                </div>
-              </>
-            )}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".stl"
-            className="hidden"
-            onChange={handleFile}
-          />
+          {uploadMode && (
+            <div className="px-5 pt-5 md:px-0 md:pt-0">
+              <button
+                onClick={() => fileRef.current?.click()}
+                className={cn(
+                  "w-full rounded-2xl border-2 border-dashed p-8 flex flex-col items-center gap-3 transition-smooth",
+                  stlFile
+                    ? "border-success bg-success/5"
+                    : "border-border hover:border-primary bg-muted/30"
+                )}
+              >
+                {stlFile ? (
+                  <>
+                    <FileBox className="h-10 w-10 text-success" />
+                    <div className="text-center">
+                      <p className="font-medium text-sm">{stlFile.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(stlFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <span className="text-xs text-primary underline">Trocar arquivo</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-10 w-10 text-muted-foreground" />
+                    <div className="text-center">
+                      <p className="font-medium">Toque para enviar</p>
+                      <p className="text-xs text-muted-foreground mt-1">Apenas .stl</p>
+                    </div>
+                  </>
+                )}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".stl"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="p-5 space-y-5">
+      <div className="p-5 md:p-0 md:flex-1 space-y-5">
         {!uploadMode && product && (
           <div>
             <h2 className="font-display text-2xl font-bold">{product.name}</h2>
@@ -213,9 +216,10 @@ const Print3DDetalhe = ({ uploadMode = false }: Props) => {
           />
         </Section>
       </div>
+      </div>
 
       <div className="fixed bottom-16 inset-x-0 md:bottom-0 border-t bg-background/95 backdrop-blur p-4 z-30">
-        <div className="max-w-md mx-auto flex items-center gap-3">
+        <div className="max-w-md md:max-w-3xl mx-auto flex items-center gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Total</p>
             <p className="font-display text-xl font-bold text-primary">

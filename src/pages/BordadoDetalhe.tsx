@@ -81,29 +81,30 @@ const BordadoDetalhe = () => {
   };
 
   return (
-    <AppShell title={product.name} showBack>
-      {/* Imagem + preview */}
-      <div className="relative">
-        <img
-          src={product.image_url}
-          alt={product.name}
-          className="w-full aspect-square object-cover"
-        />
-        {/* Preview do bordado */}
-        <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-elegant min-w-[60%] text-center"
-          style={{ backgroundColor: towelColorOpt.hex }}
-        >
-          <p
-            className={cn(fontOpt.className, "text-2xl truncate")}
-            style={{ color: threadOpt.hex }}
+    <AppShell title={product.name} showBack wide>
+      <div className="md:flex md:gap-8 md:px-8 md:pt-6">
+        {/* Imagem + preview */}
+        <div className="relative md:w-[42%] md:flex-shrink-0 md:self-start md:sticky md:top-20 md:rounded-2xl md:overflow-hidden">
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full aspect-square object-cover"
+          />
+          {/* Preview do bordado */}
+          <div
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-elegant min-w-[60%] text-center"
+            style={{ backgroundColor: towelColorOpt.hex }}
           >
-            {text || "Seu nome"}
-          </p>
+            <p
+              className={cn(fontOpt.className, "text-2xl truncate")}
+              style={{ color: threadOpt.hex }}
+            >
+              {text || "Seu nome"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="p-5 space-y-5">
+      <div className="p-5 md:p-0 md:flex-1 space-y-5">
         <div>
           <h2 className="font-display text-2xl font-bold">{product.name}</h2>
           <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
@@ -192,10 +193,11 @@ const BordadoDetalhe = () => {
           />
         </Section>
       </div>
+      </div>
 
       {/* Sticky footer — sempre visível */}
       <div className="fixed bottom-16 inset-x-0 md:bottom-0 border-t bg-background/95 backdrop-blur p-4 z-30">
-        <div className="max-w-md mx-auto flex items-center gap-3">
+        <div className="max-w-md md:max-w-3xl mx-auto flex items-center gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Total</p>
             <p className="font-display text-xl font-bold text-secondary">

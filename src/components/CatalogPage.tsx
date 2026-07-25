@@ -16,19 +16,19 @@ export const CatalogPage = ({ category, title, subtitle, basePath }: CatalogPage
   const { products, loading } = useProducts(category);
 
   return (
-    <AppShell title={title} showBack>
-      <div className="px-5 pt-4 pb-2">
+    <AppShell title={title} showBack wide>
+      <div className="px-5 md:px-8 pt-4 pb-2">
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       {loading ? (
-        <div className="px-5 grid grid-cols-2 gap-3 mt-2">
+        <div className="px-5 md:px-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mt-2">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />
           ))}
         </div>
       ) : (
-        <div className="px-5 grid grid-cols-2 gap-3 mt-2">
+        <div className="px-5 md:px-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mt-2">
           {products.map((p) => (
             <Link
               key={p.id}
@@ -57,7 +57,7 @@ export const CatalogPage = ({ category, title, subtitle, basePath }: CatalogPage
             </Link>
           ))}
           {products.length === 0 && (
-            <p className="col-span-2 text-center text-sm text-muted-foreground py-12">
+            <p className="col-span-full text-center text-sm text-muted-foreground py-12">
               Nenhum produto cadastrado ainda.
             </p>
           )}
@@ -65,10 +65,10 @@ export const CatalogPage = ({ category, title, subtitle, basePath }: CatalogPage
       )}
 
       {category === "impressao3d" && (
-        <div className="px-5 mt-6">
+        <div className="px-5 md:px-8 mt-6">
           <Link
             to="/impressao3d/upload"
-            className="block rounded-2xl gradient-hero text-primary-foreground p-5 shadow-elegant transition-smooth hover:opacity-95"
+            className="block md:max-w-sm rounded-2xl gradient-hero text-primary-foreground p-5 shadow-elegant transition-smooth hover:opacity-95"
           >
             <p className="text-xs uppercase tracking-widest opacity-80">Sob demanda</p>
             <p className="font-display text-lg font-bold mt-1">Envie seu arquivo STL</p>

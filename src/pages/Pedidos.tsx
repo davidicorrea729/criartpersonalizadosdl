@@ -12,7 +12,7 @@ const Pedidos = () => {
 
   if (loading) {
     return (
-      <AppShell title="Meus pedidos" showBack>
+      <AppShell title="Meus pedidos" showBack wide>
         <div className="flex justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -29,8 +29,8 @@ const PedidosList = ({ userId }: { userId: string }) => {
   const { data: orders, isLoading } = useMyOrders(userId);
 
   return (
-    <AppShell title="Meus pedidos" showBack>
-      <div className="px-4 pt-4 pb-10">
+    <AppShell title="Meus pedidos" showBack wide>
+      <div className="px-4 pt-4 pb-10 md:px-8">
         {isLoading && (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -52,7 +52,7 @@ const PedidosList = ({ userId }: { userId: string }) => {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4">
           {orders?.map((o) => (
             <div key={o.id} className="bg-card rounded-2xl shadow-soft p-4">
               <div className="flex justify-between items-start mb-2">
