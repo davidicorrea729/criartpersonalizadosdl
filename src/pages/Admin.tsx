@@ -28,7 +28,7 @@ import {
   clearAdminPassword,
 } from "@/lib/adminApi";
 import { formatBRL } from "@/store/cart";
-import { STATUS_LABEL, STATUS_COLOR, type Order, type OrderStatus } from "@/hooks/useOrders";
+import { STATUS_LABEL, STATUS_COLOR, isPixExpired, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
 import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
@@ -82,12 +82,6 @@ const PERIOD_LABEL: Record<DashboardData["period"], string> = {
   "30d": "30 dias",
   all: "Tudo",
 };
-
-const isPixExpired = (o: Order) =>
-  o.status === "pendente" &&
-  o.payment_status !== "approved" &&
-  !!o.pix_expires_at &&
-  new Date(o.pix_expires_at) < new Date();
 
 const Admin = () => {
   const { user } = useAuth();

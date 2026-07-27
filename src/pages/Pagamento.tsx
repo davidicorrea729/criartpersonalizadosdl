@@ -125,6 +125,7 @@ const Pagamento = () => {
   const isFailed =
     order?.payment_status === "rejected" ||
     order?.payment_status === "cancelled";
+  const isExpired = remaining === "Expirado";
 
   const copy = async () => {
     if (!order?.pix_qr_code) return;
@@ -218,7 +219,25 @@ const Pagamento = () => {
               </div>
             )}
 
-            {order?.pix_qr_code && (
+            {order?.pix_qr_code && isExpired && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-5 text-center">
+                <Clock className="h-10 w-10 text-destructive mx-auto mb-2" />
+                <h2 className="font-display font-bold text-lg">Código Pix expirado</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  O prazo para pagar esse código já passou. Gere um novo para continuar.
+                </p>
+                <Button
+                  className="mt-4 w-full"
+                  variant="warm"
+                  onClick={() => generatePix(orderId!)}
+                  disabled={generating}
+                >
+                  {generating ? "Gerando..." : "Gerar novo código Pix"}
+                </Button>
+              </div>
+            )}
+
+            {order?.pix_qr_code && !isExpired && (
               <div className="bg-card rounded-2xl shadow-soft p-4 space-y-4">
                 <div className="flex items-center justify-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />

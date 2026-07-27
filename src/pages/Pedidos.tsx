@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { useMyOrders, STATUS_LABEL, STATUS_COLOR } from "@/hooks/useOrders";
+import { useMyOrders, STATUS_LABEL, STATUS_COLOR, isPixExpired } from "@/hooks/useOrders";
 import { formatBRL } from "@/store/cart";
 import { Package, Loader2 } from "lucide-react";
 
@@ -66,9 +66,16 @@ const PedidosList = ({ userId }: { userId: string }) => {
                     })}
                   </p>
                 </div>
-                <Badge className={STATUS_COLOR[o.status]} variant="secondary">
-                  {STATUS_LABEL[o.status]}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={STATUS_COLOR[o.status]} variant="secondary">
+                    {STATUS_LABEL[o.status]}
+                  </Badge>
+                  {isPixExpired(o) && (
+                    <Badge variant="secondary" className="bg-destructive/15 text-destructive text-[10px] px-1.5 py-0 font-normal">
+                      Pix expirado
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5 my-3 border-t pt-3">
@@ -90,6 +97,12 @@ const PedidosList = ({ userId }: { userId: string }) => {
                   {formatBRL(Number(o.total))}
                 </span>
               </div>
+
+              {isPixExpired(o) && (
+                <Button asChild variant="warm" size="sm" className="w-full mt-3">
+                  <Link to={`/pagamento/${o.id}`}>Gerar novo Pix</Link>
+                </Button>
+              )}
             </div>
           ))}
         </div>

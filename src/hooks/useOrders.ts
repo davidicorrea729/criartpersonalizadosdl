@@ -32,6 +32,12 @@ export interface Order {
   order_items?: OrderItem[];
 }
 
+export const isPixExpired = (o: Pick<Order, "status" | "payment_status" | "pix_expires_at">) =>
+  o.status === "pendente" &&
+  o.payment_status !== "approved" &&
+  !!o.pix_expires_at &&
+  new Date(o.pix_expires_at) < new Date();
+
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pendente: "Pendente",
   em_producao: "Em produção",
