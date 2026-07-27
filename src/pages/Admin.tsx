@@ -30,7 +30,7 @@ import {
 import { formatBRL } from "@/store/cart";
 import { STATUS_LABEL, STATUS_COLOR, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
-import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductRow {
@@ -42,6 +42,26 @@ interface ProductRow {
   image_url: string;
   sort_order: number;
   is_active: boolean;
+  stock: number;
+}
+
+interface DashboardProduct {
+  id: string;
+  name: string;
+  category: "bordados" | "impressao3d";
+  base_price: number;
+  stock: number;
+  is_active: boolean;
+  sold_qty: number;
+  sold_revenue: number;
+}
+
+interface DashboardData {
+  period: "today" | "7d" | "30d" | "all";
+  revenue: { recebido: number; pendente: number; cancelado: number };
+  ordersByStatus: Record<string, number>;
+  totalOrders: number;
+  products: DashboardProduct[];
 }
 
 const empty: Omit<ProductRow, "id"> = {
@@ -52,6 +72,14 @@ const empty: Omit<ProductRow, "id"> = {
   image_url: "",
   sort_order: 0,
   is_active: true,
+  stock: 0,
+};
+
+const PERIOD_LABEL: Record<DashboardData["period"], string> = {
+  today: "Hoje",
+  "7d": "7 dias",
+  "30d": "30 dias",
+  all: "Tudo",
 };
 
 const Admin = () => {
@@ -66,8 +94,11 @@ const Admin = () => {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [form, setForm] = useState<Omit<ProductRow, "id">>(empty);
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState<"products" | "orders">("products");
+  const [tab, setTab] = useState<"dashboard" | "products" | "orders">("dashboard");
   const [search, setSearch] = useState("");
+  const [dashPeriod, setDashPeriod] = useState<DashboardData["period"]>("all");
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashLoading, setDashLoading] = useState(false);
 
   useEffect(() => {
     const saved = getAdminPassword();
@@ -94,6 +125,23 @@ const Admin = () => {
       toast.error(e.message);
     }
   };
+
+  const loadDashboard = async (period: DashboardData["period"]) => {
+    setDashLoading(true);
+    try {
+      const data = await adminApi.dashboard(period);
+      setDashboard(data);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDashLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authed && tab === "dashboard") loadDashboard(dashPeriod);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, tab, dashPeriod]);
 
   const handleLogin = async () => {
     if (!password) return;
@@ -245,7 +293,11 @@ const Admin = () => {
           <div>
             <h2 className="font-display text-lg font-bold leading-tight">Painel do criador</h2>
             <p className="text-sm text-muted-foreground">
-              {tab === "products" ? `${filteredItems.length} de ${items.length} produto(s)` : `${orders.length} pedido(s)`}
+              {tab === "dashboard"
+                ? "Visão geral do negócio"
+                : tab === "products"
+                ? `${filteredItems.length} de ${items.length} produto(s)`
+                : `${orders.length} pedido(s)`}
             </p>
           </div>
           <button
@@ -258,7 +310,8 @@ const Admin = () => {
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-            <TabsList className="grid grid-cols-2 w-full sm:w-64">
+            <TabsList className="grid grid-cols-3 w-full sm:w-80">
+              <TabsTrigger value="dashboard">Vendas</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>
               <TabsTrigger value="orders">Pedidos</TabsTrigger>
             </TabsList>
@@ -278,7 +331,113 @@ const Admin = () => {
                 </Button>
               </div>
             )}
+            {tab === "dashboard" && (
+              <Select value={dashPeriod} onValueChange={(v: any) => setDashPeriod(v)}>
+                <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PERIOD_LABEL) as DashboardData["period"][]).map((p) => (
+                    <SelectItem key={p} value={p}>{PERIOD_LABEL[p]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
+
+          <TabsContent value="dashboard" className="space-y-4">
+            {dashLoading && !dashboard && (
+              <p className="text-muted-foreground text-sm">Carregando…</p>
+            )}
+            {dashboard && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatCard
+                    icon={<Wallet className="h-4 w-4" />}
+                    label="Recebido"
+                    value={formatBRL(dashboard.revenue.recebido)}
+                    tone="success"
+                  />
+                  <StatCard
+                    icon={<Clock className="h-4 w-4" />}
+                    label="Aguardando pagamento"
+                    value={formatBRL(dashboard.revenue.pendente)}
+                    tone="warning"
+                  />
+                  <StatCard
+                    icon={<XCircle className="h-4 w-4" />}
+                    label="Cancelado/Rejeitado"
+                    value={formatBRL(dashboard.revenue.cancelado)}
+                    tone="danger"
+                  />
+                  <StatCard
+                    icon={<PackageSearch className="h-4 w-4" />}
+                    label="Pedidos no período"
+                    value={String(dashboard.totalOrders)}
+                    tone="neutral"
+                  />
+                </div>
+
+                <div className="bg-card rounded-2xl shadow-soft p-4">
+                  <p className="text-sm font-medium mb-3">Pedidos por status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(dashboard.ordersByStatus).map(([status, count]) => (
+                      <Badge key={status} variant="secondary" className={STATUS_COLOR[status as OrderStatus]}>
+                        {STATUS_LABEL[status as OrderStatus] ?? status}: {count}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-2xl shadow-soft overflow-hidden">
+                  <p className="text-sm font-medium p-4 pb-0">Estoque e vendas por produto</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm mt-2">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground border-t border-border">
+                          <th className="p-3 font-medium">Produto</th>
+                          <th className="p-3 font-medium">Categoria</th>
+                          <th className="p-3 font-medium">Estoque</th>
+                          <th className="p-3 font-medium">Vendidos</th>
+                          <th className="p-3 font-medium">Receita gerada</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.products.map((p) => (
+                          <tr key={p.id} className="border-t border-border">
+                            <td className="p-3 font-medium">
+                              {p.name}
+                              {!p.is_active && <span className="ml-1.5 text-xs text-muted-foreground">(inativo)</span>}
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {p.category === "bordados" ? "Bordados" : "Impressão 3D"}
+                            </td>
+                            <td className="p-3">
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  p.stock === 0
+                                    ? "bg-destructive/15 text-destructive"
+                                    : p.stock <= 3
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                    : ""
+                                }
+                              >
+                                {p.stock}
+                              </Badge>
+                            </td>
+                            <td className="p-3">{p.sold_qty}</td>
+                            <td className="p-3 font-medium text-primary">{formatBRL(p.sold_revenue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {dashboard.products.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-8">Nenhum produto cadastrado.</p>
+                  )}
+                </div>
+              </>
+            )}
+          </TabsContent>
 
           <TabsContent value="products">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -300,6 +459,18 @@ const Admin = () => {
                           Inativo
                         </Badge>
                       )}
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] px-1.5 py-0 font-normal ${
+                          p.stock === 0
+                            ? "bg-destructive/15 text-destructive"
+                            : p.stock <= 3
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        Estoque: {p.stock}
+                      </Badge>
                     </div>
                     <p className="text-sm font-bold text-primary mt-1">
                       {formatBRL(Number(p.base_price))}
@@ -413,10 +584,14 @@ const Admin = () => {
               <Label>Descrição</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="mt-1" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label>Preço base (R$)</Label>
                 <Input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) || 0 })} className="mt-1" />
+              </div>
+              <div>
+                <Label>Estoque</Label>
+                <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) || 0 })} className="mt-1" />
               </div>
               <div>
                 <Label>Ordem</Label>
@@ -449,5 +624,32 @@ const Admin = () => {
     </AppShell>
   );
 };
+
+const STAT_TONE: Record<string, string> = {
+  success: "bg-green-500/10 text-green-700 dark:text-green-400",
+  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  danger: "bg-destructive/10 text-destructive",
+  neutral: "bg-primary/10 text-primary",
+};
+
+const StatCard = ({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "success" | "warning" | "danger" | "neutral";
+}) => (
+  <div className="bg-card rounded-2xl shadow-soft p-4">
+    <div className={`h-8 w-8 rounded-full flex items-center justify-center mb-2 ${STAT_TONE[tone]}`}>
+      {icon}
+    </div>
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="font-display text-xl font-bold mt-0.5">{value}</p>
+  </div>
+);
 
 export default Admin;

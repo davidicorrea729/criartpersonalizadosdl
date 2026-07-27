@@ -58,6 +58,14 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+    // Busca o status atual antes de atualizar, para só descontar estoque uma vez
+    const { data: currentOrder } = await admin
+      .from("orders")
+      .select("payment_status, order_items(product_id, quantity)")
+      .eq("id", orderId)
+      .maybeSingle();
+    const wasAlreadyApproved = currentOrder?.payment_status === "approved";
+
     const updates: Record<string, unknown> = {
       payment_status: status,
       mp_payment_id: String(paymentId),
@@ -77,6 +85,19 @@ Deno.serve(async (req) => {
     if (error) {
       console.error("Erro update order:", error);
       return new Response("db error", { status: 200, headers: corsHeaders });
+    }
+
+    // Desconta estoque uma única vez, na primeira aprovação
+    if (status === "approved" && !wasAlreadyApproved) {
+      const items = (currentOrder?.order_items ?? []) as { product_id: string | null; quantity: number }[];
+      for (const it of items) {
+        if (!it.product_id) continue;
+        const { error: stockErr } = await admin.rpc("decrement_product_stock", {
+          p_product_id: it.product_id,
+          p_qty: it.quantity,
+        });
+        if (stockErr) console.error("Erro ao descontar estoque:", stockErr);
+      }
     }
 
     return new Response("ok", { status: 200, headers: corsHeaders });

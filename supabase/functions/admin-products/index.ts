@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
           image_url: p.image_url ?? "",
           sort_order: Number(p.sort_order) || 0,
           is_active: p.is_active ?? true,
+          stock: Number(p.stock) || 0,
         })
         .select()
         .single();
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
       const { id, patch } = body as any;
       if (!id) return json({ error: "id obrigatório" }, 400);
       const allowed: Record<string, unknown> = {};
-      for (const k of ["category", "name", "description", "base_price", "image_url", "sort_order", "is_active"]) {
+      for (const k of ["category", "name", "description", "base_price", "image_url", "sort_order", "is_active", "stock"]) {
         if (k in (patch ?? {})) allowed[k] = (patch as any)[k];
       }
       if (allowed.category && !VALID_CATEGORIES.includes(allowed.category as string)) {
@@ -134,6 +135,76 @@ Deno.serve(async (req) => {
         .single();
       if (error) throw error;
       return json({ order: data });
+    }
+
+    if (action === "dashboard") {
+      const period = ((body as any)?.period ?? "all") as "today" | "7d" | "30d" | "all";
+      let since: string | null = null;
+      const now = new Date();
+      if (period === "today") {
+        since = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      } else if (period === "7d") {
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (period === "30d") {
+        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      let ordersQuery = admin
+        .from("orders")
+        .select("id, status, total, payment_status, created_at, order_items(product_id, quantity, unit_price)");
+      if (since) ordersQuery = ordersQuery.gte("created_at", since);
+      const { data: orders, error: ordersErr } = await ordersQuery;
+      if (ordersErr) throw ordersErr;
+
+      const { data: products, error: productsErr } = await admin
+        .from("products")
+        .select("id, name, category, base_price, stock, is_active")
+        .order("category")
+        .order("sort_order");
+      if (productsErr) throw productsErr;
+
+      const revenue = { recebido: 0, pendente: 0, cancelado: 0 };
+      const ordersByStatus: Record<string, number> = {
+        pendente: 0,
+        em_producao: 0,
+        enviado: 0,
+        concluido: 0,
+        cancelado: 0,
+      };
+      const soldByProduct = new Map<string, { qty: number; revenue: number }>();
+
+      for (const o of orders ?? []) {
+        const total = Number(o.total) || 0;
+        if (o.payment_status === "approved") revenue.recebido += total;
+        else if (o.payment_status === "rejected" || o.payment_status === "cancelled") revenue.cancelado += total;
+        else revenue.pendente += total;
+
+        if (o.status in ordersByStatus) ordersByStatus[o.status] += 1;
+
+        if (o.payment_status === "approved") {
+          for (const it of (o as any).order_items ?? []) {
+            if (!it.product_id) continue;
+            const cur = soldByProduct.get(it.product_id) ?? { qty: 0, revenue: 0 };
+            cur.qty += Number(it.quantity) || 0;
+            cur.revenue += (Number(it.unit_price) || 0) * (Number(it.quantity) || 0);
+            soldByProduct.set(it.product_id, cur);
+          }
+        }
+      }
+
+      const productsWithSales = (products ?? []).map((p: any) => ({
+        ...p,
+        sold_qty: soldByProduct.get(p.id)?.qty ?? 0,
+        sold_revenue: soldByProduct.get(p.id)?.revenue ?? 0,
+      }));
+
+      return json({
+        period,
+        revenue,
+        ordersByStatus,
+        totalOrders: (orders ?? []).length,
+        products: productsWithSales,
+      });
     }
 
     if (action === "promote-admin") {

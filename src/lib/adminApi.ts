@@ -47,6 +47,7 @@ export const adminApi = {
   listOrders: () => call("list-orders"),
   updateOrderStatus: (id: string, status: string) =>
     call("update-order-status", { id, status }),
+  dashboard: (period: "today" | "7d" | "30d" | "all" = "all") => call("dashboard", { period }),
   promoteAdmin: (email: string) => call("promote-admin", { email }),
   uploadImage: async (file: File) => {
     const base64 = await new Promise<string>((resolve, reject) => {
