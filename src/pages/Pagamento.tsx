@@ -3,8 +3,10 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { pixProgress } from "@/hooks/useOrders";
 import { formatBRL } from "@/store/cart";
 import { Copy, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -239,12 +241,15 @@ const Pagamento = () => {
 
             {order?.pix_qr_code && !isExpired && (
               <div className="bg-card rounded-2xl shadow-soft p-4 space-y-4">
-                <div className="flex items-center justify-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Expira em</span>
-                  <span className="font-mono font-semibold">
-                    {remaining ?? "--:--:--"}
-                  </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Expira em</span>
+                    <span className="font-mono font-semibold">
+                      {remaining ?? "--:--:--"}
+                    </span>
+                  </div>
+                  <Progress value={pixProgress(order.pix_expires_at, now) ?? 0} className="h-1.5" />
                 </div>
 
                 {order.pix_qr_code_base64 && (

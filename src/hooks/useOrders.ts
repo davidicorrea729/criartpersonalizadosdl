@@ -26,6 +26,7 @@ export interface Order {
   notes: string;
   payment_method: string;
   payment_status: string;
+  pix_qr_code: string | null;
   pix_expires_at: string | null;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,14 @@ export const isPixExpired = (o: Pick<Order, "status" | "payment_status" | "pix_e
   o.payment_status !== "approved" &&
   !!o.pix_expires_at &&
   new Date(o.pix_expires_at) < new Date();
+
+/** Percentual de tempo restante do PIX (janela fixa de 24h gerada pela edge function), 0-100. */
+export const pixProgress = (pixExpiresAt: string | null | undefined, now: number) => {
+  if (!pixExpiresAt) return null;
+  const PIX_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const remaining = new Date(pixExpiresAt).getTime() - now;
+  return Math.max(0, Math.min(100, (remaining / PIX_WINDOW_MS) * 100));
+};
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pendente: "Pendente",

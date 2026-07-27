@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import {
   adminApi,
   getAdminPassword,
@@ -28,7 +29,7 @@ import {
   clearAdminPassword,
 } from "@/lib/adminApi";
 import { formatBRL } from "@/store/cart";
-import { STATUS_LABEL, STATUS_COLOR, isPixExpired, type Order, type OrderStatus } from "@/hooks/useOrders";
+import { STATUS_LABEL, STATUS_COLOR, isPixExpired, pixProgress, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
 import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
@@ -76,6 +77,15 @@ const empty: Omit<ProductRow, "id"> = {
   stock: 0,
 };
 
+const formatTimeLeft = (pixExpiresAt: string | null, now: number) => {
+  if (!pixExpiresAt) return "";
+  const ms = new Date(pixExpiresAt).getTime() - now;
+  if (ms <= 0) return "expirado";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `expira em ${h}h${String(m).padStart(2, "0")}` : `expira em ${m}min`;
+};
+
 const PERIOD_LABEL: Record<DashboardData["period"], string> = {
   today: "Hoje",
   "7d": "7 dias",
@@ -100,6 +110,12 @@ const Admin = () => {
   const [dashPeriod, setDashPeriod] = useState<DashboardData["period"]>("all");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const saved = getAdminPassword();
@@ -536,6 +552,15 @@ const Admin = () => {
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{o.shipping_address}</p>
+                {o.status === "pendente" && o.payment_status !== "approved" && o.pix_qr_code && !isPixExpired(o) && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Pix aguardando pagamento</span>
+                      <span>{formatTimeLeft(o.pix_expires_at, now)}</span>
+                    </div>
+                    <Progress value={pixProgress(o.pix_expires_at, now) ?? 0} className="h-1" />
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2 mt-3 border-t pt-2">
                   <span className="font-bold text-primary">{formatBRL(Number(o.total))}</span>
                   <Select
