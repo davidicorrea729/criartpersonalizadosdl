@@ -60,6 +60,7 @@ interface DashboardData {
   period: "today" | "7d" | "30d" | "all";
   revenue: { recebido: number; pendente: number; cancelado: number };
   ordersByStatus: Record<string, number>;
+  expiredPending: number;
   totalOrders: number;
   products: DashboardProduct[];
 }
@@ -81,6 +82,12 @@ const PERIOD_LABEL: Record<DashboardData["period"], string> = {
   "30d": "30 dias",
   all: "Tudo",
 };
+
+const isPixExpired = (o: Order) =>
+  o.status === "pendente" &&
+  o.payment_status !== "approved" &&
+  !!o.pix_expires_at &&
+  new Date(o.pix_expires_at) < new Date();
 
 const Admin = () => {
   const { user } = useAuth();
@@ -385,6 +392,11 @@ const Admin = () => {
                       </Badge>
                     ))}
                   </div>
+                  {dashboard.expiredPending > 0 && (
+                    <p className="text-xs text-destructive mt-3">
+                      {dashboard.expiredPending} pedido(s) pendente(s) com o Pix já expirado — provavelmente não vão ser pagos.
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-card rounded-2xl shadow-soft overflow-hidden">
@@ -510,9 +522,16 @@ const Admin = () => {
                     </p>
                     <p className="text-[11px] text-muted-foreground">{o.customer_phone}</p>
                   </div>
-                  <Badge className={STATUS_COLOR[o.status]} variant="secondary">
-                    {STATUS_LABEL[o.status]}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className={STATUS_COLOR[o.status]} variant="secondary">
+                      {STATUS_LABEL[o.status]}
+                    </Badge>
+                    {isPixExpired(o) && (
+                      <Badge variant="secondary" className="bg-destructive/15 text-destructive text-[10px] px-1.5 py-0 font-normal">
+                        Pix expirado
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-muted-foreground border-t pt-2 space-y-0.5">
                   {o.order_items?.map((it) => (

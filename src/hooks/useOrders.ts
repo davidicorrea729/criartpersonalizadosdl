@@ -26,6 +26,7 @@ export interface Order {
   notes: string;
   payment_method: string;
   payment_status: string;
+  pix_expires_at: string | null;
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];

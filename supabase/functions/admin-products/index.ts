@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
       let ordersQuery = admin
         .from("orders")
-        .select("id, status, total, payment_status, created_at, order_items(product_id, quantity, unit_price)");
+        .select("id, status, total, payment_status, pix_expires_at, created_at, order_items(product_id, quantity, unit_price)");
       if (since) ordersQuery = ordersQuery.gte("created_at", since);
       const { data: orders, error: ordersErr } = await ordersQuery;
       if (ordersErr) throw ordersErr;
@@ -172,6 +172,8 @@ Deno.serve(async (req) => {
         cancelado: 0,
       };
       const soldByProduct = new Map<string, { qty: number; revenue: number }>();
+      let expiredPending = 0;
+      const now2 = Date.now();
 
       for (const o of orders ?? []) {
         const total = Number(o.total) || 0;
@@ -180,6 +182,15 @@ Deno.serve(async (req) => {
         else revenue.pendente += total;
 
         if (o.status in ordersByStatus) ordersByStatus[o.status] += 1;
+
+        if (
+          o.status === "pendente" &&
+          o.payment_status !== "approved" &&
+          o.pix_expires_at &&
+          new Date(o.pix_expires_at).getTime() < now2
+        ) {
+          expiredPending += 1;
+        }
 
         if (o.payment_status === "approved") {
           for (const it of (o as any).order_items ?? []) {
@@ -202,6 +213,7 @@ Deno.serve(async (req) => {
         period,
         revenue,
         ordersByStatus,
+        expiredPending,
         totalOrders: (orders ?? []).length,
         products: productsWithSales,
       });
