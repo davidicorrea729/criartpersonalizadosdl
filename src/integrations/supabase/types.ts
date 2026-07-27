@@ -129,6 +129,7 @@ export type Database = {
           is_active: boolean
           name: string
           sort_order: number
+          stock: number
           updated_at: string
         }
         Insert: {
@@ -141,6 +142,7 @@ export type Database = {
           is_active?: boolean
           name: string
           sort_order?: number
+          stock?: number
           updated_at?: string
         }
         Update: {
@@ -153,6 +155,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           sort_order?: number
+          stock?: number
           updated_at?: string
         }
         Relationships: []
@@ -231,6 +234,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_product_stock: {
+        Args: { p_product_id: string; p_qty: number }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
