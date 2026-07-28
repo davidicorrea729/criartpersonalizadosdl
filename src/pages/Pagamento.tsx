@@ -17,6 +17,7 @@ interface OrderRow {
   total: number;
   status: string;
   payment_status: string;
+  payment_method: string | null;
   pix_qr_code: string | null;
   pix_qr_code_base64: string | null;
   pix_expires_at: string | null;
@@ -46,7 +47,7 @@ const Pagamento = () => {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, user_id, total, status, payment_status, pix_qr_code, pix_qr_code_base64, pix_expires_at, mp_payment_id",
+          "id, user_id, total, status, payment_status, payment_method, pix_qr_code, pix_qr_code_base64, pix_expires_at, mp_payment_id",
         )
         .eq("id", orderId)
         .maybeSingle();
@@ -56,7 +57,7 @@ const Pagamento = () => {
         return;
       }
       setOrder(data as OrderRow);
-      if (!data.pix_qr_code) await generatePix(orderId);
+      if (data.payment_method === "pix" && !data.pix_qr_code) await generatePix(orderId);
     })();
     return () => {
       cancelled = true;
@@ -101,7 +102,7 @@ const Pagamento = () => {
       const { data: fresh } = await supabase
         .from("orders")
         .select(
-          "id, user_id, total, status, payment_status, pix_qr_code, pix_qr_code_base64, pix_expires_at, mp_payment_id",
+          "id, user_id, total, status, payment_status, payment_method, pix_qr_code, pix_qr_code_base64, pix_expires_at, mp_payment_id",
         )
         .eq("id", id)
         .maybeSingle();
@@ -112,6 +113,25 @@ const Pagamento = () => {
       setGenerating(false);
     }
   };
+
+  const retryCheckout = async (id: string) => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "create-checkout-preference",
+        { body: { orderId: id } },
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      window.location.href = data.init_point;
+    } catch (e: any) {
+      setError(e.message || "Erro ao iniciar pagamento");
+      setGenerating(false);
+    }
+  };
+
+  const isPix = order?.payment_method === "pix";
 
   const remaining = useMemo(() => {
     if (!order?.pix_expires_at) return null;
@@ -137,7 +157,7 @@ const Pagamento = () => {
 
   if (loading) {
     return (
-      <AppShell title="Pagamento PIX" showBack>
+      <AppShell title="Pagamento" showBack>
         <div className="flex justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -147,7 +167,7 @@ const Pagamento = () => {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <AppShell title="Pagamento PIX" showBack>
+    <AppShell title="Pagamento" showBack>
       <div className="px-4 pt-4 pb-10 max-w-md mx-auto space-y-4">
         {error && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl">
@@ -203,14 +223,25 @@ const Pagamento = () => {
             <Button
               className="mt-4 w-full"
               variant="outline"
-              onClick={() => orderId && generatePix(orderId)}
+              disabled={generating}
+              onClick={() => orderId && (isPix ? generatePix(orderId) : retryCheckout(orderId))}
             >
-              Tentar novamente
+              {generating ? "Aguarde..." : "Tentar novamente"}
             </Button>
           </div>
         )}
 
-        {!isApproved && !isFailed && (
+        {!isApproved && !isFailed && !isPix && (
+          <div className="bg-card rounded-2xl shadow-soft p-5 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+            <h2 className="font-display font-bold text-lg">Processando pagamento</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Assim que o Mercado Pago confirmar, esta tela atualiza automaticamente.
+            </p>
+          </div>
+        )}
+
+        {!isApproved && !isFailed && isPix && (
           <>
             {generating && !order?.pix_qr_code && (
               <div className="flex flex-col items-center py-10">

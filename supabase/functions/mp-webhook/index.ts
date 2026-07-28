@@ -70,6 +70,9 @@ Deno.serve(async (req) => {
       payment_status: status,
       mp_payment_id: String(paymentId),
     };
+    if (payment?.payment_method_id) {
+      updates.payment_method = String(payment.payment_method_id);
+    }
 
     // Se aprovado, avança o status do pedido para "em_producao" automaticamente
     if (status === "approved") {

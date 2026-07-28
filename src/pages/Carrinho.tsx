@@ -3,10 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { useCart, formatBRL } from "@/store/cart";
-import { Trash2, ShoppingBag, Loader2 } from "lucide-react";
+import { Trash2, ShoppingBag, Loader2, QrCode, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+
+type PaymentMethod = "pix" | "checkout_pro";
 
 const Carrinho = () => {
   const { items, removeItem, updateQuantity, total, clear } = useCart();
@@ -14,6 +17,7 @@ const Carrinho = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
 
   const handleCheckout = async () => {
     if (!user) {
@@ -36,7 +40,7 @@ const Carrinho = () => {
           customer_name: profile.full_name,
           customer_phone: profile.phone,
           shipping_address: address,
-          payment_method: "pix",
+          payment_method: paymentMethod,
           payment_status: "pending",
         })
         .select()
@@ -57,6 +61,17 @@ const Carrinho = () => {
       if (iErr) throw iErr;
 
       clear();
+
+      if (paymentMethod === "checkout_pro") {
+        const { data, error } = await supabase.functions.invoke("create-checkout-preference", {
+          body: { orderId: order.id },
+        });
+        if (error || data?.error) throw new Error(data?.error || error?.message);
+        toast.success("Pedido criado! Redirecionando para pagamento...");
+        window.location.href = data.init_point;
+        return;
+      }
+
       toast.success("Pedido criado! Pague com PIX para confirmar.");
       navigate(`/pagamento/${order.id}`);
     } catch (e: any) {
@@ -163,10 +178,11 @@ const Carrinho = () => {
               {formatBRL(subtotal)}
             </span>
           </div>
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           <Button
             variant="hero"
             size="xl"
-            className="w-full"
+            className="w-full mt-3"
             onClick={handleCheckout}
             disabled={submitting}
           >
@@ -189,10 +205,11 @@ const Carrinho = () => {
               {formatBRL(subtotal)}
             </span>
           </div>
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           <Button
             variant="hero"
             size="xl"
-            className="w-full"
+            className="w-full mt-3"
             onClick={handleCheckout}
             disabled={submitting}
           >
@@ -207,6 +224,40 @@ const Carrinho = () => {
     </AppShell>
   );
 };
+
+const PaymentMethodPicker = ({
+  value,
+  onChange,
+}: {
+  value: PaymentMethod;
+  onChange: (v: PaymentMethod) => void;
+}) => (
+  <div>
+    <p className="text-xs text-muted-foreground mb-1.5">Forma de pagamento</p>
+    <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() => onChange("pix")}
+        className={cn(
+          "flex items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-sm font-medium transition-smooth",
+          value === "pix" ? "border-secondary bg-secondary-soft" : "border-border text-muted-foreground"
+        )}
+      >
+        <QrCode className="h-4 w-4" /> Pix
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("checkout_pro")}
+        className={cn(
+          "flex items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-sm font-medium transition-smooth",
+          value === "checkout_pro" ? "border-secondary bg-secondary-soft" : "border-border text-muted-foreground"
+        )}
+      >
+        <CreditCard className="h-4 w-4" /> Cartão / outros
+      </button>
+    </div>
+  </div>
+);
 
 const CustomizationSummary = ({ item }: { item: ReturnType<typeof useCart.getState>["items"][0] }) => {
   const c = item.customization;
