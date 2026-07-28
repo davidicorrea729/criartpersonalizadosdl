@@ -1,11 +1,25 @@
+import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
-import { useMyOrders, STATUS_LABEL, STATUS_COLOR, isPixExpired } from "@/hooks/useOrders";
+import { useMyOrders, STATUS_LABEL, STATUS_COLOR, isPixExpired, pixProgress, type Order } from "@/hooks/useOrders";
 import { formatBRL } from "@/store/cart";
 import { Package, Loader2 } from "lucide-react";
+
+const formatTimeLeft = (pixExpiresAt: string | null, now: number) => {
+  if (!pixExpiresAt) return "";
+  const ms = new Date(pixExpiresAt).getTime() - now;
+  if (ms <= 0) return "expirado";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `expira em ${h}h${String(m).padStart(2, "0")}` : `expira em ${m}min`;
+};
+
+const isPixActive = (o: Order) =>
+  o.status === "pendente" && o.payment_status !== "approved" && !!o.pix_qr_code && !isPixExpired(o);
 
 const Pedidos = () => {
   const { user, loading } = useAuth();
@@ -27,6 +41,12 @@ const Pedidos = () => {
 
 const PedidosList = ({ userId }: { userId: string }) => {
   const { data: orders, isLoading } = useMyOrders(userId);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
     <AppShell title="Meus pedidos" showBack wide>
@@ -91,6 +111,16 @@ const PedidosList = ({ userId }: { userId: string }) => {
                 ))}
               </div>
 
+              {isPixActive(o) && (
+                <div className="mb-3 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Pix aguardando pagamento</span>
+                    <span>{formatTimeLeft(o.pix_expires_at, now)}</span>
+                  </div>
+                  <Progress value={pixProgress(o.pix_expires_at, now) ?? 0} className="h-1" />
+                </div>
+              )}
+
               <div className="flex justify-between items-center border-t pt-2">
                 <span className="text-xs text-muted-foreground">Total</span>
                 <span className="font-display font-bold text-primary">
@@ -101,6 +131,11 @@ const PedidosList = ({ userId }: { userId: string }) => {
               {isPixExpired(o) && (
                 <Button asChild variant="warm" size="sm" className="w-full mt-3">
                   <Link to={`/pagamento/${o.id}`}>Gerar novo Pix</Link>
+                </Button>
+              )}
+              {isPixActive(o) && (
+                <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                  <Link to={`/pagamento/${o.id}`}>Ver pagamento</Link>
                 </Button>
               )}
             </div>
