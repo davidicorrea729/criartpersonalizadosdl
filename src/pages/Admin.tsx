@@ -31,7 +31,7 @@ import {
 import { formatBRL } from "@/store/cart";
 import { STATUS_LABEL, STATUS_COLOR, isPixExpired, pixProgress, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
-import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch } from "lucide-react";
+import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch, Store } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductRow {
@@ -64,7 +64,14 @@ interface DashboardData {
   expiredPending: number;
   totalOrders: number;
   products: DashboardProduct[];
+  externalSales: { shopee: number; mercado_livre: number; outro: number };
 }
+
+const CHANNEL_LABEL: Record<string, string> = {
+  shopee: "Shopee",
+  mercado_livre: "Mercado Livre",
+  outro: "Outro canal",
+};
 
 const empty: Omit<ProductRow, "id"> = {
   category: "bordados",
@@ -111,6 +118,9 @@ const Admin = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [externalSaleFor, setExternalSaleFor] = useState<ProductRow | null>(null);
+  const [externalSaleForm, setExternalSaleForm] = useState({ quantity: 1, channel: "shopee", note: "" });
+  const [registeringSale, setRegisteringSale] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -223,6 +233,33 @@ const Admin = () => {
       await loadAll();
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  const openExternalSale = (p: ProductRow) => {
+    setExternalSaleFor(p);
+    setExternalSaleForm({ quantity: 1, channel: "shopee", note: "" });
+  };
+
+  const handleRegisterExternalSale = async () => {
+    if (!externalSaleFor) return;
+    if (externalSaleForm.quantity < 1) return toast.error("Quantidade inválida");
+    setRegisteringSale(true);
+    try {
+      await adminApi.registerExternalSale(
+        externalSaleFor.id,
+        externalSaleForm.quantity,
+        externalSaleForm.channel,
+        externalSaleForm.note,
+      );
+      toast.success("Estoque atualizado!");
+      setExternalSaleFor(null);
+      await loadAll();
+      if (dashboard) await loadDashboard(dashPeriod);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRegisteringSale(false);
     }
   };
 
@@ -409,6 +446,20 @@ const Admin = () => {
                   )}
                 </div>
 
+                <div className="bg-card rounded-2xl shadow-soft p-4">
+                  <p className="text-sm font-medium mb-3">Vendas registradas fora do site</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(dashboard.externalSales).map(([channel, qty]) => (
+                      <Badge key={channel} variant="secondary">
+                        {CHANNEL_LABEL[channel] ?? channel}: {qty}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Use o ícone <Store className="h-3 w-3 inline" /> na aba Produtos para registrar uma venda feita na Shopee, Mercado Livre etc. e descontar o estoque.
+                  </p>
+                </div>
+
                 <div className="bg-card rounded-2xl shadow-soft overflow-hidden">
                   <p className="text-sm font-medium p-4 pb-0">Estoque e vendas por produto</p>
                   <div className="overflow-x-auto">
@@ -501,6 +552,9 @@ const Admin = () => {
                   <div className="flex flex-col gap-1">
                     <button onClick={() => openEdit(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent" aria-label="Editar">
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => openExternalSale(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent" aria-label="Registrar venda externa">
+                      <Store className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={() => handleDelete(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground" aria-label="Excluir">
                       <Trash2 className="h-3.5 w-3.5" />
@@ -655,6 +709,65 @@ const Admin = () => {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={loading} variant="hero">
               {loading ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!externalSaleFor} onOpenChange={(v) => !v && setExternalSaleFor(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Registrar venda externa</DialogTitle>
+          </DialogHeader>
+          {externalSaleFor && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {externalSaleFor.name} · estoque atual: <strong>{externalSaleFor.stock}</strong>
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Quantidade vendida</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={externalSaleForm.quantity}
+                    onChange={(e) => setExternalSaleForm({ ...externalSaleForm, quantity: Number(e.target.value) || 0 })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Canal</Label>
+                  <Select
+                    value={externalSaleForm.channel}
+                    onValueChange={(v) => setExternalSaleForm({ ...externalSaleForm, channel: v })}
+                  >
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shopee">Shopee</SelectItem>
+                      <SelectItem value="mercado_livre">Mercado Livre</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Observação (opcional)</Label>
+                <Input
+                  value={externalSaleForm.note}
+                  onChange={(e) => setExternalSaleForm({ ...externalSaleForm, note: e.target.value })}
+                  placeholder="Ex: pedido #123 da Shopee"
+                  className="mt-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Novo estoque após confirmar: <strong>{Math.max(0, externalSaleFor.stock - externalSaleForm.quantity)}</strong>
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExternalSaleFor(null)}>Cancelar</Button>
+            <Button onClick={handleRegisterExternalSale} disabled={registeringSale} variant="hero">
+              {registeringSale ? "Salvando..." : "Confirmar"}
             </Button>
           </DialogFooter>
         </DialogContent>

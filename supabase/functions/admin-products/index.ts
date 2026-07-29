@@ -100,6 +100,37 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === "register-external-sale") {
+      const { productId, quantity, channel, note } = body as any;
+      const qty = Number(quantity);
+      const VALID_CHANNELS = ["shopee", "mercado_livre", "outro"];
+      if (!productId) return json({ error: "produto obrigatório" }, 400);
+      if (!qty || qty < 1) return json({ error: "quantidade inválida" }, 400);
+      const ch = VALID_CHANNELS.includes(channel) ? channel : "outro";
+
+      const { error: mErr } = await admin.from("stock_movements").insert({
+        product_id: productId,
+        quantity: qty,
+        channel: ch,
+        note: note ? String(note).slice(0, 280) : "",
+      });
+      if (mErr) throw mErr;
+
+      const { error: rpcErr } = await admin.rpc("decrement_product_stock", {
+        p_product_id: productId,
+        p_qty: qty,
+      });
+      if (rpcErr) throw rpcErr;
+
+      const { data: product, error: pErr } = await admin
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single();
+      if (pErr) throw pErr;
+      return json({ product });
+    }
+
     if (action === "upload-image") {
       // body: { fileName, contentType, base64 }
       const { fileName, contentType, base64 } = body as any;
@@ -163,6 +194,19 @@ Deno.serve(async (req) => {
         .order("sort_order");
       if (productsErr) throw productsErr;
 
+      let movementsQuery = admin
+        .from("stock_movements")
+        .select("quantity, channel, created_at");
+      if (since) movementsQuery = movementsQuery.gte("created_at", since);
+      const { data: movements, error: movementsErr } = await movementsQuery;
+      if (movementsErr) throw movementsErr;
+
+      const externalSales = { shopee: 0, mercado_livre: 0, outro: 0 };
+      for (const m of movements ?? []) {
+        const ch = (m.channel as string) in externalSales ? (m.channel as keyof typeof externalSales) : "outro";
+        externalSales[ch] += Number(m.quantity) || 0;
+      }
+
       const revenue = { recebido: 0, pendente: 0, cancelado: 0 };
       const ordersByStatus: Record<string, number> = {
         pendente: 0,
@@ -216,6 +260,7 @@ Deno.serve(async (req) => {
         expiredPending,
         totalOrders: (orders ?? []).length,
         products: productsWithSales,
+        externalSales,
       });
     }
 
