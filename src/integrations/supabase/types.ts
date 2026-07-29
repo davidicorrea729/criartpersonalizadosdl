@@ -68,6 +68,7 @@ export type Database = {
           customer_phone: string
           id: string
           mp_payment_id: string | null
+          mp_preference_id: string | null
           notes: string
           payment_method: string
           payment_status: string
@@ -86,6 +87,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notes?: string
           payment_method?: string
           payment_status?: string
@@ -104,6 +106,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           mp_payment_id?: string | null
+          mp_preference_id?: string | null
           notes?: string
           payment_method?: string
           payment_status?: string
