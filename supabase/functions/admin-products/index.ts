@@ -9,10 +9,54 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") ?? "";
+const ML_CLIENT_ID = Deno.env.get("ML_CLIENT_ID") ?? "";
+const ML_CLIENT_SECRET = Deno.env.get("ML_CLIENT_SECRET") ?? "";
+const ML_REDIRECT_URI = `${SUPABASE_URL}/functions/v1/ml-oauth-callback`;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const VALID_CATEGORIES = ["bordados", "impressao3d"];
+
+// Retorna um access_token válido do Mercado Livre, renovando via refresh_token se necessário
+async function getValidMlToken(): Promise<{ accessToken: string } | { error: string }> {
+  const { data: cred, error } = await admin
+    .from("ml_credentials")
+    .select("*")
+    .eq("id", "default")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!cred) return { error: "Mercado Livre não conectado" };
+
+  if (new Date(cred.expires_at).getTime() > Date.now() + 60_000) {
+    return { accessToken: cred.access_token };
+  }
+
+  const res = await fetch("https://api.mercadolibre.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: ML_CLIENT_ID,
+      client_secret: ML_CLIENT_SECRET,
+      refresh_token: cred.refresh_token,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) return { error: data?.message || "Erro ao renovar token do Mercado Livre" };
+
+  const expiresAt = new Date(Date.now() + Number(data.expires_in ?? 21600) * 1000);
+  await admin
+    .from("ml_credentials")
+    .update({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: expiresAt.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", "default");
+
+  return { accessToken: data.access_token };
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -262,6 +306,154 @@ Deno.serve(async (req) => {
         products: productsWithSales,
         externalSales,
       });
+    }
+
+    if (action === "ml-auth-url") {
+      if (!ML_CLIENT_ID) return json({ error: "ML_CLIENT_ID não configurado" }, 400);
+      const authUrl = new URL("https://auth.mercadolivre.com.br/authorization");
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("client_id", ML_CLIENT_ID);
+      authUrl.searchParams.set("redirect_uri", ML_REDIRECT_URI);
+      return json({ url: authUrl.toString() });
+    }
+
+    if (action === "ml-status") {
+      const { data: cred } = await admin
+        .from("ml_credentials")
+        .select("ml_nickname, ml_user_id, updated_at")
+        .eq("id", "default")
+        .maybeSingle();
+      return json({ connected: !!cred, nickname: cred?.ml_nickname ?? null });
+    }
+
+    if (action === "ml-disconnect") {
+      const { error: delErr } = await admin.from("ml_credentials").delete().eq("id", "default");
+      if (delErr) throw delErr;
+      return json({ ok: true });
+    }
+
+    if (action === "ml-publish") {
+      const { productId } = body as any;
+      if (!productId) return json({ error: "produto obrigatório" }, 400);
+
+      const tokenResult = await getValidMlToken();
+      if ("error" in tokenResult) return json({ error: tokenResult.error }, 400);
+      const { accessToken } = tokenResult;
+
+      const { data: product, error: pErr } = await admin
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single();
+      if (pErr || !product) return json({ error: "Produto não encontrado" }, 404);
+      if (!product.stock || product.stock < 1) {
+        return json({ error: "Defina um estoque de pelo menos 1 unidade antes de publicar" }, 400);
+      }
+
+      const mlHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      };
+
+      // Atualização de anúncio já existente: só preço e estoque
+      if (product.ml_item_id) {
+        const updRes = await fetch(`https://api.mercadolibre.com/items/${product.ml_item_id}`, {
+          method: "PUT",
+          headers: mlHeaders,
+          body: JSON.stringify({
+            price: Number(product.base_price),
+            available_quantity: Number(product.stock),
+          }),
+        });
+        const updData = await updRes.json();
+        if (!updRes.ok) {
+          console.error("Erro ao atualizar anúncio ML:", updData);
+          return json({ error: updData?.message || "Erro ao atualizar no Mercado Livre", details: updData }, 500);
+        }
+        await admin
+          .from("products")
+          .update({ ml_synced_at: new Date().toISOString() })
+          .eq("id", productId);
+        return json({ ok: true, updated: true, permalink: product.ml_permalink });
+      }
+
+      // Publicação nova: prevê a categoria a partir do nome do produto
+      const catRes = await fetch(
+        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(product.name)}`,
+      );
+      const catData = await catRes.json();
+      const categoryId = Array.isArray(catData) && catData[0]?.category_id;
+      if (!categoryId) {
+        return json({ error: "Não foi possível identificar uma categoria no Mercado Livre para este produto" }, 400);
+      }
+
+      // Descobre um tipo de anúncio válido para essa categoria/conta
+      let listingTypeId = "gold_special";
+      try {
+        const meRes = await fetch("https://api.mercadolibre.com/users/me", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const me = await meRes.json();
+        const ltRes = await fetch(
+          `https://api.mercadolibre.com/users/${me.id}/available_listing_types?category_id=${categoryId}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
+        const ltData = await ltRes.json();
+        if (ltRes.ok && Array.isArray(ltData?.listing_type_id_options) && ltData.listing_type_id_options.length) {
+          listingTypeId = ltData.listing_type_id_options[0];
+        }
+      } catch {
+        // mantém o padrão se essa checagem falhar
+      }
+
+      const itemPayload: Record<string, unknown> = {
+        title: String(product.name).slice(0, 60),
+        category_id: categoryId,
+        price: Number(product.base_price),
+        currency_id: "BRL",
+        available_quantity: Number(product.stock),
+        condition: "new",
+        listing_type_id: listingTypeId,
+        buying_mode: "buy_it_now",
+      };
+      if (product.image_url) {
+        itemPayload.pictures = [{ source: product.image_url }];
+      }
+
+      const createRes = await fetch("https://api.mercadolibre.com/items", {
+        method: "POST",
+        headers: mlHeaders,
+        body: JSON.stringify(itemPayload),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        console.error("Erro ao criar anúncio ML:", createData);
+        return json({ error: createData?.message || "Erro ao publicar no Mercado Livre", details: createData }, 500);
+      }
+
+      // Descrição em endpoint separado (não bloqueia se falhar)
+      if (product.description) {
+        try {
+          await fetch(`https://api.mercadolibre.com/items/${createData.id}/description`, {
+            method: "POST",
+            headers: mlHeaders,
+            body: JSON.stringify({ plain_text: String(product.description).slice(0, 5000) }),
+          });
+        } catch {
+          // não bloqueia a publicação
+        }
+      }
+
+      await admin
+        .from("products")
+        .update({
+          ml_item_id: createData.id,
+          ml_permalink: createData.permalink,
+          ml_synced_at: new Date().toISOString(),
+        })
+        .eq("id", productId);
+
+      return json({ ok: true, item_id: createData.id, permalink: createData.permalink });
     }
 
     if (action === "promote-admin") {

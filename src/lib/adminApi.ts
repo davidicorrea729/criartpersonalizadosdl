@@ -51,6 +51,10 @@ export const adminApi = {
   promoteAdmin: (email: string) => call("promote-admin", { email }),
   registerExternalSale: (productId: string, quantity: number, channel: string, note?: string) =>
     call("register-external-sale", { productId, quantity, channel, note }),
+  mlAuthUrl: () => call("ml-auth-url"),
+  mlStatus: () => call("ml-status"),
+  mlDisconnect: () => call("ml-disconnect"),
+  mlPublish: (productId: string) => call("ml-publish", { productId }),
   uploadImage: async (file: File) => {
     const base64 = await new Promise<string>((resolve, reject) => {
       const r = new FileReader();

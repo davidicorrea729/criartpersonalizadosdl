@@ -31,7 +31,7 @@ import {
 import { formatBRL } from "@/store/cart";
 import { STATUS_LABEL, STATUS_COLOR, isPixExpired, pixProgress, type Order, type OrderStatus } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
-import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch, Store } from "lucide-react";
+import { Pencil, Trash2, Plus, Upload, LogOut, Lock, ShieldPlus, Search, Wallet, Clock, XCircle, PackageSearch, Store, ShoppingBag, ExternalLink, Link2, Link2Off } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductRow {
@@ -44,6 +44,8 @@ interface ProductRow {
   sort_order: number;
   is_active: boolean;
   stock: number;
+  ml_item_id: string | null;
+  ml_permalink: string | null;
 }
 
 interface DashboardProduct {
@@ -82,6 +84,8 @@ const empty: Omit<ProductRow, "id"> = {
   sort_order: 0,
   is_active: true,
   stock: 0,
+  ml_item_id: null,
+  ml_permalink: null,
 };
 
 const formatTimeLeft = (pixExpiresAt: string | null, now: number) => {
@@ -121,11 +125,76 @@ const Admin = () => {
   const [externalSaleFor, setExternalSaleFor] = useState<ProductRow | null>(null);
   const [externalSaleForm, setExternalSaleForm] = useState({ quantity: 1, channel: "shopee", note: "" });
   const [registeringSale, setRegisteringSale] = useState(false);
+  const [mlConnected, setMlConnected] = useState<boolean | null>(null);
+  const [mlNickname, setMlNickname] = useState<string | null>(null);
+  const [mlConnecting, setMlConnecting] = useState(false);
+  const [mlPublishingId, setMlPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
   }, []);
+
+  const loadMlStatus = async () => {
+    try {
+      const data = await adminApi.mlStatus();
+      setMlConnected(data.connected);
+      setMlNickname(data.nickname);
+    } catch {
+      setMlConnected(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authed) return;
+    loadMlStatus();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ml_connected")) {
+      toast.success("Mercado Livre conectado!");
+      window.history.replaceState({}, "", window.location.pathname);
+      loadMlStatus();
+    } else if (params.get("ml_error")) {
+      toast.error(`Erro ao conectar Mercado Livre: ${params.get("ml_error")}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
+  const handleMlConnect = async () => {
+    setMlConnecting(true);
+    try {
+      const { url } = await adminApi.mlAuthUrl();
+      window.location.href = url;
+    } catch (e: any) {
+      toast.error(e.message);
+      setMlConnecting(false);
+    }
+  };
+
+  const handleMlDisconnect = async () => {
+    if (!confirm("Desconectar o Mercado Livre? Anúncios já publicados continuam ativos, mas pararão de atualizar automaticamente.")) return;
+    try {
+      await adminApi.mlDisconnect();
+      setMlConnected(false);
+      setMlNickname(null);
+      toast.success("Desconectado");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleMlPublish = async (p: ProductRow) => {
+    setMlPublishingId(p.id);
+    try {
+      await adminApi.mlPublish(p.id);
+      toast.success(p.ml_item_id ? "Anúncio atualizado no Mercado Livre!" : "Publicado no Mercado Livre!");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setMlPublishingId(null);
+    }
+  };
 
   useEffect(() => {
     const saved = getAdminPassword();
@@ -513,6 +582,29 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="products">
+            <div className="bg-card rounded-2xl shadow-soft p-3 mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm">
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                {mlConnected === null ? (
+                  <span className="text-muted-foreground">Verificando conexão com o Mercado Livre…</span>
+                ) : mlConnected ? (
+                  <span>
+                    Mercado Livre conectado{mlNickname ? ` como ${mlNickname}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Mercado Livre não conectado</span>
+                )}
+              </div>
+              {mlConnected ? (
+                <Button variant="outline" size="sm" onClick={handleMlDisconnect} className="gap-1.5">
+                  <Link2Off className="h-3.5 w-3.5" /> Desconectar
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={handleMlConnect} disabled={mlConnecting} className="gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" /> {mlConnecting ? "Redirecionando..." : "Conectar Mercado Livre"}
+                </Button>
+              )}
+            </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filteredItems.map((p) => (
                 <div key={p.id} className="bg-card rounded-2xl shadow-soft p-3 flex gap-3">
@@ -544,6 +636,16 @@ const Admin = () => {
                       >
                         Estoque: {p.stock}
                       </Badge>
+                      {p.ml_item_id && (
+                        <a
+                          href={p.ml_permalink ?? undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                        >
+                          No Mercado Livre <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
                     </div>
                     <p className="text-sm font-bold text-primary mt-1">
                       {formatBRL(Number(p.base_price))}
@@ -555,6 +657,15 @@ const Admin = () => {
                     </button>
                     <button onClick={() => openExternalSale(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent" aria-label="Registrar venda externa">
                       <Store className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => (mlConnected ? handleMlPublish(p) : toast.info("Conecte o Mercado Livre primeiro"))}
+                      disabled={mlPublishingId === p.id}
+                      className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent disabled:opacity-50"
+                      aria-label={p.ml_item_id ? "Atualizar no Mercado Livre" : "Publicar no Mercado Livre"}
+                      title={p.ml_item_id ? "Atualizar no Mercado Livre" : "Publicar no Mercado Livre"}
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={() => handleDelete(p)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground" aria-label="Excluir">
                       <Trash2 className="h-3.5 w-3.5" />
