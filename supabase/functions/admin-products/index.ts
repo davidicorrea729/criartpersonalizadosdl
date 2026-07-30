@@ -437,6 +437,9 @@ Deno.serve(async (req) => {
         condition: "new",
         listing_type_id: listingTypeId,
         buying_mode: "buy_it_now",
+        // Algumas categorias (com atributos "catalog_required" como marca/modelo) exigem
+        // esse campo para agrupar o anúncio numa família de produto no catálogo do ML.
+        family_name: String(product.name).slice(0, 60),
       };
       if (product.image_url) {
         itemPayload.pictures = [{ source: product.image_url }];
@@ -449,7 +452,7 @@ Deno.serve(async (req) => {
       });
       const createData = await createRes.json();
       if (!createRes.ok) {
-        console.error("Erro ao criar anúncio ML:", createData);
+        console.error("Erro ao criar anúncio ML:", { categoryId, createData });
         return json({ error: describeMlError(createData, "Erro ao publicar no Mercado Livre"), details: createData }, 500);
       }
 
