@@ -227,6 +227,7 @@ const Admin = () => {
   const searchMlCategories = async (query: string) => {
     if (!query.trim()) return;
     setMlCategorySearching(true);
+    setMlSelectedCategory(null);
     try {
       const data = await adminApi.mlSearchCategories(query.trim());
       setMlCategoryOptions(data.categories ?? []);
