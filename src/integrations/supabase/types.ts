@@ -163,6 +163,8 @@ export type Database = {
           id: string
           image_url: string
           is_active: boolean
+          ml_category_id: string | null
+          ml_category_name: string | null
           ml_item_id: string | null
           ml_permalink: string | null
           ml_synced_at: string | null
@@ -179,6 +181,8 @@ export type Database = {
           id?: string
           image_url?: string
           is_active?: boolean
+          ml_category_id?: string | null
+          ml_category_name?: string | null
           ml_item_id?: string | null
           ml_permalink?: string | null
           ml_synced_at?: string | null
@@ -195,6 +199,8 @@ export type Database = {
           id?: string
           image_url?: string
           is_active?: boolean
+          ml_category_id?: string | null
+          ml_category_name?: string | null
           ml_item_id?: string | null
           ml_permalink?: string | null
           ml_synced_at?: string | null
@@ -252,6 +258,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          note: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          note?: string
+          product_id: string
+          quantity: number
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          note?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
