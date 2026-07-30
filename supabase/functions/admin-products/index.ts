@@ -332,8 +332,27 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === "ml-search-categories") {
+      const { query } = body as any;
+      if (!query) return json({ error: "busca obrigatória" }, 400);
+      const catRes = await fetch(
+        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(query)}`,
+      );
+      const catData = await catRes.json();
+      if (!catRes.ok || !Array.isArray(catData)) {
+        return json({ error: "Erro ao buscar categorias no Mercado Livre" }, 500);
+      }
+      return json({
+        categories: catData.map((c: any) => ({
+          category_id: c.category_id,
+          category_name: c.category_name,
+          domain_name: c.domain_name,
+        })),
+      });
+    }
+
     if (action === "ml-publish") {
-      const { productId } = body as any;
+      const { productId, categoryId: chosenCategoryId, categoryName: chosenCategoryName } = body as any;
       if (!productId) return json({ error: "produto obrigatório" }, 400);
 
       const tokenResult = await getValidMlToken();
@@ -355,6 +374,13 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${accessToken}`,
       };
 
+      const describeMlError = (data: any, fallback: string) => {
+        const causes = Array.isArray(data?.cause)
+          ? data.cause.map((c: any) => c.message).filter(Boolean).join("; ")
+          : "";
+        return causes || data?.message || fallback;
+      };
+
       // Atualização de anúncio já existente: só preço e estoque
       if (product.ml_item_id) {
         const updRes = await fetch(`https://api.mercadolibre.com/items/${product.ml_item_id}`, {
@@ -368,7 +394,7 @@ Deno.serve(async (req) => {
         const updData = await updRes.json();
         if (!updRes.ok) {
           console.error("Erro ao atualizar anúncio ML:", updData);
-          return json({ error: updData?.message || "Erro ao atualizar no Mercado Livre", details: updData }, 500);
+          return json({ error: describeMlError(updData, "Erro ao atualizar no Mercado Livre"), details: updData }, 500);
         }
         await admin
           .from("products")
@@ -377,14 +403,10 @@ Deno.serve(async (req) => {
         return json({ ok: true, updated: true, permalink: product.ml_permalink });
       }
 
-      // Publicação nova: prevê a categoria a partir do nome do produto
-      const catRes = await fetch(
-        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(product.name)}`,
-      );
-      const catData = await catRes.json();
-      const categoryId = Array.isArray(catData) && catData[0]?.category_id;
+      // Categoria: usa a escolhida manualmente agora, ou a já salva, ou tenta prever
+      const categoryId = chosenCategoryId || product.ml_category_id;
       if (!categoryId) {
-        return json({ error: "Não foi possível identificar uma categoria no Mercado Livre para este produto" }, 400);
+        return json({ error: "Escolha uma categoria do Mercado Livre antes de publicar" }, 400);
       }
 
       // Descobre um tipo de anúncio válido para essa categoria/conta
@@ -428,7 +450,7 @@ Deno.serve(async (req) => {
       const createData = await createRes.json();
       if (!createRes.ok) {
         console.error("Erro ao criar anúncio ML:", createData);
-        return json({ error: createData?.message || "Erro ao publicar no Mercado Livre", details: createData }, 500);
+        return json({ error: describeMlError(createData, "Erro ao publicar no Mercado Livre"), details: createData }, 500);
       }
 
       // Descrição em endpoint separado (não bloqueia se falhar)
@@ -450,6 +472,8 @@ Deno.serve(async (req) => {
           ml_item_id: createData.id,
           ml_permalink: createData.permalink,
           ml_synced_at: new Date().toISOString(),
+          ml_category_id: categoryId,
+          ml_category_name: chosenCategoryName || product.ml_category_name || null,
         })
         .eq("id", productId);
 

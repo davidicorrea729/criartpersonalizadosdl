@@ -54,7 +54,9 @@ export const adminApi = {
   mlAuthUrl: () => call("ml-auth-url"),
   mlStatus: () => call("ml-status"),
   mlDisconnect: () => call("ml-disconnect"),
-  mlPublish: (productId: string) => call("ml-publish", { productId }),
+  mlSearchCategories: (query: string) => call("ml-search-categories", { query }),
+  mlPublish: (productId: string, categoryId?: string, categoryName?: string) =>
+    call("ml-publish", { productId, categoryId, categoryName }),
   uploadImage: async (file: File) => {
     const base64 = await new Promise<string>((resolve, reject) => {
       const r = new FileReader();

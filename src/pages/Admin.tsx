@@ -46,6 +46,14 @@ interface ProductRow {
   stock: number;
   ml_item_id: string | null;
   ml_permalink: string | null;
+  ml_category_id: string | null;
+  ml_category_name: string | null;
+}
+
+interface MlCategoryOption {
+  category_id: string;
+  category_name: string;
+  domain_name: string;
 }
 
 interface DashboardProduct {
@@ -86,6 +94,8 @@ const empty: Omit<ProductRow, "id"> = {
   stock: 0,
   ml_item_id: null,
   ml_permalink: null,
+  ml_category_id: null,
+  ml_category_name: null,
 };
 
 const formatTimeLeft = (pixExpiresAt: string | null, now: number) => {
@@ -129,6 +139,11 @@ const Admin = () => {
   const [mlNickname, setMlNickname] = useState<string | null>(null);
   const [mlConnecting, setMlConnecting] = useState(false);
   const [mlPublishingId, setMlPublishingId] = useState<string | null>(null);
+  const [mlPublishFor, setMlPublishFor] = useState<ProductRow | null>(null);
+  const [mlCategoryQuery, setMlCategoryQuery] = useState("");
+  const [mlCategoryOptions, setMlCategoryOptions] = useState<MlCategoryOption[]>([]);
+  const [mlCategorySearching, setMlCategorySearching] = useState(false);
+  const [mlSelectedCategory, setMlSelectedCategory] = useState<MlCategoryOption | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -183,10 +198,10 @@ const Admin = () => {
     }
   };
 
-  const handleMlPublish = async (p: ProductRow) => {
+  const handleMlPublish = async (p: ProductRow, categoryId?: string, categoryName?: string) => {
     setMlPublishingId(p.id);
     try {
-      await adminApi.mlPublish(p.id);
+      await adminApi.mlPublish(p.id, categoryId, categoryName);
       toast.success(p.ml_item_id ? "Anúncio atualizado no Mercado Livre!" : "Publicado no Mercado Livre!");
       await loadAll();
     } catch (e: any) {
@@ -194,6 +209,38 @@ const Admin = () => {
     } finally {
       setMlPublishingId(null);
     }
+  };
+
+  const openMlPublish = (p: ProductRow) => {
+    if (!mlConnected) return toast.info("Conecte o Mercado Livre primeiro");
+    // Já publicado (ou categoria já escolhida antes): só atualiza preço/estoque direto
+    if (p.ml_item_id) return handleMlPublish(p);
+    setMlPublishFor(p);
+    setMlCategoryQuery(p.name);
+    setMlCategoryOptions([]);
+    setMlSelectedCategory(
+      p.ml_category_id ? { category_id: p.ml_category_id, category_name: p.ml_category_name ?? p.ml_category_id, domain_name: "" } : null,
+    );
+    searchMlCategories(p.name);
+  };
+
+  const searchMlCategories = async (query: string) => {
+    if (!query.trim()) return;
+    setMlCategorySearching(true);
+    try {
+      const data = await adminApi.mlSearchCategories(query.trim());
+      setMlCategoryOptions(data.categories ?? []);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setMlCategorySearching(false);
+    }
+  };
+
+  const confirmMlPublish = async () => {
+    if (!mlPublishFor || !mlSelectedCategory) return;
+    await handleMlPublish(mlPublishFor, mlSelectedCategory.category_id, mlSelectedCategory.category_name);
+    setMlPublishFor(null);
   };
 
   useEffect(() => {
@@ -659,7 +706,7 @@ const Admin = () => {
                       <Store className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => (mlConnected ? handleMlPublish(p) : toast.info("Conecte o Mercado Livre primeiro"))}
+                      onClick={() => openMlPublish(p)}
                       disabled={mlPublishingId === p.id}
                       className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-accent disabled:opacity-50"
                       aria-label={p.ml_item_id ? "Atualizar no Mercado Livre" : "Publicar no Mercado Livre"}
@@ -879,6 +926,74 @@ const Admin = () => {
             <Button variant="outline" onClick={() => setExternalSaleFor(null)}>Cancelar</Button>
             <Button onClick={handleRegisterExternalSale} disabled={registeringSale} variant="hero">
               {registeringSale ? "Salvando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!mlPublishFor} onOpenChange={(v) => !v && setMlPublishFor(null)}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Publicar no Mercado Livre</DialogTitle>
+          </DialogHeader>
+          {mlPublishFor && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Escolha a categoria certa para <strong>{mlPublishFor.name}</strong>. A categoria errada pode fazer o Mercado Livre pedir campos que não fazem sentido pra esse produto (ex: fabricante/modelo).
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={mlCategoryQuery}
+                    onChange={(e) => setMlCategoryQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && searchMlCategories(mlCategoryQuery)}
+                    placeholder="Buscar categoria..."
+                    className="pl-9"
+                  />
+                </div>
+                <Button variant="outline" onClick={() => searchMlCategories(mlCategoryQuery)} disabled={mlCategorySearching}>
+                  {mlCategorySearching ? "..." : "Buscar"}
+                </Button>
+              </div>
+
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                {mlCategoryOptions.map((c) => (
+                  <button
+                    key={c.category_id}
+                    onClick={() => setMlSelectedCategory(c)}
+                    className={`w-full text-left rounded-xl border-2 p-2.5 text-sm transition-smooth ${
+                      mlSelectedCategory?.category_id === c.category_id
+                        ? "border-secondary bg-secondary-soft"
+                        : "border-border hover:border-secondary/50"
+                    }`}
+                  >
+                    <p className="font-medium">{c.category_name}</p>
+                    <p className="text-xs text-muted-foreground">{c.domain_name} · {c.category_id}</p>
+                  </button>
+                ))}
+                {!mlCategorySearching && mlCategoryOptions.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Nenhuma categoria encontrada. Tente outro termo de busca.
+                  </p>
+                )}
+              </div>
+
+              {mlSelectedCategory && (
+                <p className="text-xs text-muted-foreground">
+                  Selecionada: <strong>{mlSelectedCategory.category_name}</strong>
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMlPublishFor(null)}>Cancelar</Button>
+            <Button
+              onClick={confirmMlPublish}
+              disabled={!mlSelectedCategory || mlPublishingId === mlPublishFor?.id}
+              variant="hero"
+            >
+              {mlPublishingId === mlPublishFor?.id ? "Publicando..." : "Publicar"}
             </Button>
           </DialogFooter>
         </DialogContent>
