@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ml_credentials: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          id: string
+          ml_nickname: string | null
+          ml_user_id: string | null
+          refresh_token: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ml_nickname?: string | null
+          ml_user_id?: string | null
+          refresh_token: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ml_nickname?: string | null
+          ml_user_id?: string | null
+          refresh_token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           category: string
@@ -130,6 +163,9 @@ export type Database = {
           id: string
           image_url: string
           is_active: boolean
+          ml_item_id: string | null
+          ml_permalink: string | null
+          ml_synced_at: string | null
           name: string
           sort_order: number
           stock: number
@@ -143,6 +179,9 @@ export type Database = {
           id?: string
           image_url?: string
           is_active?: boolean
+          ml_item_id?: string | null
+          ml_permalink?: string | null
+          ml_synced_at?: string | null
           name: string
           sort_order?: number
           stock?: number
@@ -156,6 +195,9 @@ export type Database = {
           id?: string
           image_url?: string
           is_active?: boolean
+          ml_item_id?: string | null
+          ml_permalink?: string | null
+          ml_synced_at?: string | null
           name?: string
           sort_order?: number
           stock?: number
